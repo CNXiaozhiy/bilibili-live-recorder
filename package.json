@@ -1,0 +1,48 @@
+{
+  "name": "bilibili-live-recorder",
+  "version": "2.0.5",
+  "description": "A Node.js-based Bilibili live streaming recording system, developed with TypeScript.",
+  "author": "CnXiaozhiy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cnxiaozhiy/bilibili-live-recorder.git"
+  },
+  "scripts": {
+    "build": "webpack --mode production",
+    "tsc": "tsc && tsc-alias",
+    "prod": "node dist/bundle.js",
+    "devx": "cross-env NODE_ENV=development nodemon --watch src --exec ts-node -r tsconfig-paths/register --files src/app.ts",
+    "dev": "cross-env NODE_ENV=development ts-node -r tsconfig-paths/register --files src/app.ts"
+  },
+  "dependencies": {
+    "axios": "^1.8.4",
+    "axios-retry": "^4.5.0",
+    "dotenv": "^16.4.7",
+    "fluent-ffmpeg": "^2.1.3",
+    "moment": "^2.30.1",
+    "qrcode": "^1.5.4",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
+    "throttled-queue": "^2.1.4",
+    "uuid": "^11.0.5",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/fluent-ffmpeg": "^2.1.27",
+    "@types/node": "^22.13.11",
+    "@types/qrcode": "^1.5.5",
+    "@types/ws": "^8.18.1",
+    "cross-env": "^7.0.3",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.11",
+    "tsconfig-paths": "^4.2.0",
+    "tsconfig-paths-webpack-plugin": "^4.2.0",
+    "typescript": "~5.7.2",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-node-externals": "^3.0.0"
+  }
+}
