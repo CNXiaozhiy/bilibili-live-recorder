@@ -4,7 +4,7 @@ import logger from "@/logger";
 import request from "@/utils/http";
 import moment from "moment";
 import pLimit from "@/utils/p-limit";
-import { getCSRF } from "@/utils/bilibili";
+import BilibiliUtils from "@/utils/bilibili";
 import { getUploadID, registerVideoStorage, uploadCover, uploadVideo, validateVideo } from "./api";
 import { BilibiliUploaderOptions } from "@/types/bilibili";
 
@@ -67,7 +67,7 @@ export default class BilibiliUploader {
       }
     }
 
-    const csrf = getCSRF(this.cookie);
+    const csrf = BilibiliUtils.getCSRF(this.cookie);
 
     const video_info = options.video;
     const video_file_path = options.file_path;

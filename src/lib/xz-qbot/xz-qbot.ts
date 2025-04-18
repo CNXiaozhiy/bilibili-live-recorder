@@ -22,7 +22,7 @@ export interface XzQbotEvents {
     e: OneBot.PrivateMessageEvent | OneBot.PrivateMessageSentEvent,
     reply: ReplyFunction<OneBot.ActionOkResponse<"send_private_msg">>
   ];
-  group_recall: [e: OneBot.GroupMessageRecallNoticeEvent, message: OneBot.RecvMessages];
+  group_recall: [e: OneBot.GroupMessageRecallNoticeEvent, message: OneBot.SegmentMessages];
 }
 
 export type ListenerHandler<T> = (data: T, uninstall: () => void) => void;
@@ -161,15 +161,15 @@ export default class XzQbot extends EventEmitter<XzQbotEvents> {
     return this._action({ action: "set_qq_profile", params });
   }
 
-  getAccountInfo() {
+  getQidianAccountInfo() {
     return this._action({ action: "qidian_get_account_info", params: null });
   }
 
-  sendGroup<T extends OneBot.SegmentMessageTypes>(group_id: number, message: OneBot.Messages<T>) {
+  sendGroup(group_id: number, message: OneBot.SegmentMessages) {
     return this._action({ action: "send_group_msg", params: { group_id, message } });
   }
 
-  sendPrivate<T extends OneBot.SegmentMessageTypes>(user_id: number, message: OneBot.Messages<T>) {
+  sendPrivate(user_id: number, message: OneBot.SegmentMessages) {
     return this._action({ action: "send_private_msg", params: { user_id, message } });
   }
 

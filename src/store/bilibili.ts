@@ -1,5 +1,4 @@
 import BilibiliUploader from "@/lib/bilibili/uploader";
-import { checkAndRefreshCookie, login } from "@/utils/bilibili";
 import { Datebase } from "@/utils/db";
 import path from "path";
 
@@ -12,7 +11,7 @@ type StoreState = {
 
 let state: StoreState;
 
-const dbPath = process.env.DB_PATH || path.resolve(process.cwd(), "./data/main.db");
+const dbPath = process.env.DB_PATH || path.resolve(process.cwd(), process.env.DB_PATH!);
 
 let initPromise = new Promise<void>(async (resolve) => {
   const dbInstance = new Datebase.Main(dbPath)._init();
@@ -42,7 +41,4 @@ export default {
   setState(newState: Partial<StoreState>): void {
     state = { ...state, ...newState };
   },
-
-  login,
-  checkAndRefreshCookie,
 };

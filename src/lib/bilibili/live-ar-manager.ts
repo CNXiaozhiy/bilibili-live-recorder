@@ -14,6 +14,10 @@ export default class BilibiliLiveArManager extends EventEmitter<LiveAutoRecorder
     this.config = config;
   }
 
+  public hasSubscriber(roomId: number, user: string) {
+    return this.subscribers.has(roomId) && this.subscribers.get(roomId)!.includes(user);
+  }
+
   public addSubscriber(roomId: number, user: string) {
     if (this.rooms.has(roomId)) {
       if (!this.subscribers.get(roomId)?.includes(user)) this.subscribers.get(roomId)!.push(user);

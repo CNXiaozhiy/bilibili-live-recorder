@@ -288,13 +288,34 @@ class Main {
   /**
    * 根据用户 ID 获取该用户订阅了的所有直播间
    * @param userId
-   * @returns
+   * @returns roomId[]
    */
   public getSubscribedRoomsByUser(userId: number) {
     return new Promise<number[]>((resolve, reject) => {
       this.db.all<Pick<Database.Main.SubscribeTableRow, "room_id">>(
         `SELECT DISTINCT room_id FROM subscribe WHERE user_id = ?`,
         [userId],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows.map((row) => row.room_id));
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * 根据 用户 ID 和 群ID 获取某群某用户订阅了的所有直播间
+   * @param userId
+   * @returns roomId[]
+   */
+  public getSubscribedRoomsByUserAndGroup(userId: number, groupId: number) {
+    return new Promise<number[]>((resolve, reject) => {
+      this.db.all<Pick<Database.Main.SubscribeTableRow, "room_id">>(
+        `SELECT DISTINCT room_id FROM subscribe WHERE user_id = ? AND group_id = ?`,
+        [userId, groupId],
         (err, rows) => {
           if (err) {
             reject(err);

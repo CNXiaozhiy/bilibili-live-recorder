@@ -2,7 +2,7 @@ import logger from "@/logger";
 import fs from "fs";
 import EventEmitter from "events";
 import bilibiliStore from "@/store/bilibili";
-import { generateUploadrOptions } from "@/utils/bilibili";
+import BilibiliUtils from "@/utils/bilibili";
 import { AutoUploaderEvents, BilibiliAutoUploaderOptions } from "@/types/bilibili";
 
 export default class BilibiliAutoUploader extends EventEmitter<AutoUploaderEvents> {
@@ -27,7 +27,7 @@ export default class BilibiliAutoUploader extends EventEmitter<AutoUploaderEvent
   private async _upload(file: string) {
     try {
       const task = this.uploaderInstance.createTask(
-        await generateUploadrOptions(this.options.liveRecorder, file)
+        await BilibiliUtils.generateUploadrOptions(this.options.liveRecorder, file)
       );
       this.emit("upload-start", task.id);
       const result = await task.upload();

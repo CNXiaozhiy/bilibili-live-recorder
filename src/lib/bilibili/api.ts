@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import request from "@/utils/http";
-import { getCSRF, parseCookies } from "@/utils/bilibili";
+import BilibiliUtils from "@/utils/bilibili";
 import { upUserInfo, videoInfo } from "@/store/pool";
 import { LiveRoomInfo, LiveRoomPlayInfo, VideoInfo, UserInfo } from "@/types/bilibili";
 
@@ -40,7 +40,7 @@ export async function checkLoginQrcode(qrcode_key: string) {
 
   if (resp.data.data.code === 0) {
     if (resp.headers["set-cookie"] && Array.isArray(resp.headers["set-cookie"])) {
-      cookie = parseCookies(resp.headers["set-cookie"]);
+      cookie = BilibiliUtils.parseCookies(resp.headers["set-cookie"]);
     } else {
       throw new Error("获取 set-cookie 失败");
     }
@@ -50,7 +50,7 @@ export async function checkLoginQrcode(qrcode_key: string) {
 }
 
 export async function checkRefreshCookie(cookie: string) {
-  const csrf = getCSRF(cookie);
+  const csrf = BilibiliUtils.getCSRF(cookie);
   const resp = await request.get<{
     code: 0 | -101;
     message: string;
@@ -64,7 +64,7 @@ export async function checkRefreshCookie(cookie: string) {
 
 export async function refreshCookie(cookie: string, refresh_token: string) {
   const timestamp = Date.now();
-  const csrf = getCSRF(cookie);
+  const csrf = BilibiliUtils.getCSRF(cookie);
 
   const publicKey = await crypto.subtle.importKey(
     "jwk",
@@ -126,7 +126,7 @@ export async function refreshCookie(cookie: string, refresh_token: string) {
 
   if (resp.headers["set-cookie"] && Array.isArray(resp.headers["set-cookie"])) {
     const new_refresh_token = resp.data.data.refresh_token;
-    const newCookie = parseCookies(resp.headers["set-cookie"]);
+    const newCookie = BilibiliUtils.parseCookies(resp.headers["set-cookie"]);
 
     await request.post(
       `https://passport.bilibili.com/x/passport-login/web/confirm/refresh?csrf=${csrf}&refresh_token=${refresh_token}`,

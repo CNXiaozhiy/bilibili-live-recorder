@@ -1,9 +1,9 @@
 /**
  * XzBLR System
- * @version 2.0.0
+ * @version 2.0.1
  */
 
-process.env.APP_VERSION = "2.0.0";
+process.env.APP_VERSION = "2.0.1";
 
 import "./bootstrap";
 
@@ -12,8 +12,8 @@ import { Adapter } from "./lib/notification-adapter/adapter";
 import XzQbotNotificationAdapter from "./lib/notification-adapter/xz-qbot";
 import BilibiliLiveArManager from "./lib/bilibili/live-ar-manager";
 import bilibiliStore from "./store/bilibili";
+import BilibiliUtils from "./utils/bilibili";
 import logger from "./logger";
-import { getImageBase64FromUrl } from "./lib/bilibili/api";
 
 let frontEndServices: Promise<any>[] = [];
 
@@ -44,10 +44,10 @@ const app = async () => {
     bilibiliStore.state.bilibili_cookie === "" ||
     bilibiliStore.state.bilibili_refresh_token === ""
   )
-    await bilibiliStore.login();
+    await BilibiliUtils.login();
 
-  setInterval(bilibiliStore.checkAndRefreshCookie, 60 * 60 * 1000);
-  bilibiliStore.checkAndRefreshCookie();
+  setInterval(BilibiliUtils.checkAndRefreshCookie, 60 * 60 * 1000);
+  BilibiliUtils.checkAndRefreshCookie();
 
   // 初始化 Arm
   const arm = new BilibiliLiveArManager({ saveRecordFolder: process.env.SAVE_RECORD_FOLDER! });
@@ -63,7 +63,7 @@ const app = async () => {
 Promise.all(frontEndServices)
   .then(() => {
     app()
-      .then(() => logger.info("[App]", "App 启动成功✔️"))
+      .then(() => logger.info("[App]", "App 启动成功✅"))
       .catch((e) => logger.error("[App Global Catch]", "全局异常捕获❌ -> ", e));
   })
   .catch((e) => {

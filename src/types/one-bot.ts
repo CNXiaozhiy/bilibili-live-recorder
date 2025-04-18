@@ -132,7 +132,7 @@ type UnidirectionalFriendListItem = {
 export interface ActionMap {
   get_login_info: {
     params: null;
-    resp: { user_id: QQNumber; nick_name: string };
+    resp: { user_id: QQNumber; nickname: string };
   };
   set_qq_profile: {
     params: Partial<{
@@ -205,7 +205,7 @@ export interface ActionMap {
       message_type: MessageType;
       sender: Sender;
       time: number;
-      message: RecvMessages;
+      message: SegmentMessages;
       raw_message: RawMessage;
     };
   };
@@ -231,7 +231,7 @@ export interface ActionMap {
   };
   get_group_msg_history: {
     params: { message_seq?: number; group_id: QQNumber };
-    resp: RecvMessages;
+    resp: SegmentMessages;
   };
   get_image: {
     params: { file: FilePath };
@@ -481,10 +481,12 @@ export type RawMessage = string;
 
 export type SegmentMessageTypes = keyof SegmentMessageMap;
 
-export type SegmentMessage<T extends SegmentMessageTypes> = {
-  type: T;
-  data: SegmentMessageMap[T];
-};
+export type SegmentMessage = {
+  [K in SegmentMessageTypes]: {
+    type: K;
+    data: SegmentMessageMap[K];
+  };
+}[SegmentMessageTypes];
 
 export type ForwardMessage = {
   content: RawMessage;
@@ -492,14 +494,10 @@ export type ForwardMessage = {
   time: number;
 };
 
-export type Message<T extends SegmentMessageTypes> = SegmentMessage<T>;
-export type RecvMessage<T extends SegmentMessageTypes> = SegmentMessage<T>;
-
-export type Messages<T extends SegmentMessageTypes = SegmentMessageTypes> =
-  | RawMessage
-  | Message<T>[];
-export type RecvMessages<T extends SegmentMessageTypes = SegmentMessageTypes> = RecvMessage<T>[];
+export type SegmentMessages = SegmentMessage[];
 export type ForwardMessages = ForwardMessage[];
+
+export type Messages = RawMessage | SegmentMessages;
 
 interface BaseOkResponse<T> {
   status: "ok";
@@ -547,7 +545,7 @@ export interface PrivateMessageEvent extends BaseEventFields {
   sub_type: "friend" | "group" | "group_self" | "other";
   message_id: MessageID;
   user_id: QQNumber;
-  message: RecvMessages;
+  message: SegmentMessages;
   raw_message: RawMessage;
   font: number;
   sender: Sender;
@@ -561,7 +559,7 @@ export interface GroupMessageEvent extends BaseEventFields {
   sub_type: "normal" | "anonymous" | "notice";
   message_id: MessageID;
   user_id: QQNumber;
-  message: RecvMessages;
+  message: SegmentMessages;
   raw_message: RawMessage;
   font: number;
   sender: Sender;

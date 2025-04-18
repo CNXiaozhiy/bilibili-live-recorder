@@ -8,7 +8,8 @@ import { getLiveRoomInfo, getUpUserInfo } from "../bilibili/api";
 import { ISubAdapter } from "./adapter";
 import { IXzQbot } from "@/types/xzqbot";
 import CommandHandler, { UserBase } from "@/utils/message";
-import { Bilibili } from "@/types/bilibili";
+import BilibiliUtils from "@/utils/bilibili";
+import { Messages } from "@/types/one-bot";
 
 export default class XzQbotNotificationAdapter implements ISubAdapter {
   public name = "xz-qbot";
@@ -24,8 +25,21 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       this.installListener(ar.roomId, ar.liveMonitor, ar.liveRecorder, ar.autoUploader);
     });
 
-    // 安装机器人消息处理器
-    this.installBotMessageHandler(arm);
+    this.xzQbot.connect().then(() => {
+      this.xzQbot
+        .getLoginInfo()
+        .then((info) => {
+          logger.info("[XzQBot Adapter]", "XzQBot 对接成功");
+          logger.info("[XzQBot Account Info]", "机器人QQ:", info.data.user_id);
+          logger.info("[XzQBot Account Info]", "机器人昵称:", info.data.nickname);
+
+          // 安装机器人消息处理器
+          this.installBotMessageHandler(arm);
+        })
+        .catch((err) => {
+          logger.error("[XzQBot Adapter]", "XzQBot 对接失败", err);
+        });
+    });
   }
 
   private preventFirst = new Set();
@@ -53,16 +67,13 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
     };
 
     function groupUsers(users: GroupUser[]): GroupedUsers[] {
-      // 使用 Map 保持类型安全（比普通对象更合适）
       const groupMap = new Map<number, number[]>();
 
-      // 遍历原始数组进行分组
       for (const { group_id, user_id } of users) {
         const existing = groupMap.get(group_id);
         existing ? existing.push(user_id) : groupMap.set(group_id, [user_id]);
       }
 
-      // 转换为目标格式
       return Array.from(groupMap.entries()).map(([group_id, user_id]) => ({
         group_id,
         user_id,
@@ -88,10 +99,11 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       groupUsers(subscribers).forEach(({ group_id, user_id }) => {
         bot
           .sendGroup(group_id, [
-            { type: "text", data: { text: `直播间 ${room_id} 开始直播啦\n\n` } },
+            { type: "text", data: { text: `您订阅的直播间开始直播啦\n\n` } },
+            ...BilibiliUtils.format.liveRoomInfo(liveMonitor.roomInfo!, liveMonitor.userInfo!),
             ...generateAt(user_id),
           ])
-          .catch((err) => logger.error(err));
+          .catch(this._messageSendError);
       });
     });
 
@@ -99,16 +111,19 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       if (isFirst(room_id)) return;
       groups.forEach((group_id) => {
         bot
-          .sendGroup(group_id, [{ type: "text", data: { text: `直播间 ${room_id} 结束直播啦` } }])
-          .catch((err) => logger.error(err));
+          .sendGroup(group_id, [
+            { type: "text", data: { text: `您订阅的直播间结束直播啦\n\n` } },
+            ...BilibiliUtils.format.liveRoomInfo(liveMonitor.roomInfo!, liveMonitor.userInfo!),
+          ])
+          .catch(this._messageSendError);
       });
     });
 
     liveRecorder.on("rec-end", () => {
       groups.forEach((group_id) => {
         bot
-          .sendGroup(group_id, [{ type: "text", data: { text: `直播间 ${room_id} 录制完成` } }])
-          .catch((err) => logger.error(err));
+          .sendGroup(group_id, [{ type: "text", data: { text: `直播间 ${room_id} 录制结束` } }])
+          .catch(this._messageSendError);
       });
     });
 
@@ -116,9 +131,14 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       groups.forEach((group_id) => {
         bot
           .sendGroup(group_id, [
-            { type: "text", data: { text: `直播间 ${room_id} 开始上传\n\n任务ID: ${taskID}` } },
+            {
+              type: "text",
+              data: {
+                text: `直播间 ${room_id} 开始投稿\n\n任务ID: ${taskID}\n发送 '任务进度 ${taskID}' 查询任务进度`,
+              },
+            },
           ])
-          .catch((err) => logger.error(err));
+          .catch(this._messageSendError);
       });
     });
 
@@ -129,11 +149,11 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
             {
               type: "text",
               data: {
-                text: `直播间 ${room_id} 上传成功\n\n视频地址: https://www.bilibili.com/video/${bvid}`,
+                text: `直播间 ${room_id} 录像投稿成功\n\n视频地址: https://www.bilibili.com/video/${bvid}`,
               },
             },
           ])
-          .catch((err) => logger.error(err));
+          .catch(this._messageSendError);
       });
     });
 
@@ -143,7 +163,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           .sendGroup(group_id, [
             { type: "text", data: { text: `直播间 ${room_id} 上传失败\n\n错误信息: ${e}` } },
           ])
-          .catch((err) => logger.error(err));
+          .catch(this._messageSendError);
       });
     });
   }
@@ -156,10 +176,16 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       group_id: number;
       user_id: number;
     }
-    const handler = new CommandHandler<
-      "订阅直播间" | "取消订阅" | "录制状态" | "直播间" | "task" | "所有直播间" | "停止录制",
-      User
-    >();
+    type Commands =
+      | "订阅直播间"
+      | "取消订阅"
+      | "录制状态"
+      | "直播间"
+      | "任务进度"
+      | "所有直播间"
+      | "停止录制";
+
+    const handler = new CommandHandler<Commands, User>();
 
     handler
       .register(
@@ -170,15 +196,16 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
         async (user, params) => {
           try {
             const roomId = parseInt(params[0]);
+            if (arm.hasSubscriber(roomId, user.symbol)) return "您已经订阅了该直播间";
             const roomInfo = await getLiveRoomInfo(roomId);
             const userInfo = await getUpUserInfo(roomInfo.uid);
-            arm.addSubscriber(roomId, `${user.group_id}_${user.user_id}`);
+            arm.addSubscriber(roomId, user.symbol);
             bilibiliStore.state.db.insertSubscribe(roomId, user.group_id, user.user_id);
             return [
               {
                 type: "image",
                 data: {
-                  url: roomInfo.user_cover,
+                  file: roomInfo.user_cover,
                 },
               },
               {
@@ -186,12 +213,10 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
                 data: {
                   text:
                     `订阅成功\n\n` +
+                    `UP主: ${userInfo.card.name}\n` +
                     `直播间ID: ${roomId}\n` +
                     `直播间标题: ${roomInfo.title}\n` +
-                    `直播间链接: https://live.bilibili.com/${roomId}\n` +
-                    `直播间简介: ${roomInfo.description}\n` +
-                    `\n` +
-                    `UP主: ${userInfo.card.name}\n`,
+                    `直播间简介: ${roomInfo.description}\n`,
                 },
               },
             ];
@@ -208,7 +233,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
         async (user, params) => {
           try {
             const roomId = parseInt(params[0]);
-            arm.reduceSubscriber(roomId, `${user.group_id}_${user.user_id}`);
+            if (!arm.hasSubscriber(roomId, user.symbol)) return "您还没有订阅该直播间";
+            arm.reduceSubscriber(roomId, user.symbol);
             bilibiliStore.state.db.deleteSubscribe(roomId, user.group_id, user.user_id);
             return "取消订阅成功";
           } catch (error) {
@@ -216,66 +242,55 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           }
         }
       )
-      .register("直播间", {}, () => {
-        return "Develop";
+      .register("直播间", {}, async (user) => {
+        const rooms = await bilibiliStore.state.db.getSubscribedRoomsByUserAndGroup(
+          user.user_id,
+          user.group_id
+        );
+        const message = arm
+          .getArs()
+          .filter((item) => rooms.includes(item.ar.roomId))
+          .map((item) =>
+            BilibiliUtils.format.liveRoomInfo(
+              item.ar.liveMonitor.roomInfo!,
+              item.ar.liveMonitor.userInfo!
+            )
+          )
+          .flat() as Messages;
+        return message.length > 0 ? message : "您还没有订阅直播间";
       })
       .register("录制状态", {}, async (user) => {
-        // 获取用户订阅了的直播间
-        const rooms = await bilibiliStore.state.db.getSubscribedRoomsByUser(user.user_id);
-        // 获取录制状态
-        return (
-          arm
-            .getArs()
-            .filter((item) => rooms.includes(item.ar.roomId))
-            .map((item) => {
-              return (
-                `直播间ID: ${item.ar.roomId}\n` +
-                `直播状态: ${
-                  item.ar.liveMonitor.roomInfo?.live_status === 1 ? "直播中" : "未直播"
-                }\n` +
-                `录制状态: ${
-                  item.ar.liveRecorder.recStatus === Bilibili.RecorderStatus.RECORDING
-                    ? "正在录制"
-                    : item.ar.liveRecorder.recStatus === Bilibili.RecorderStatus.STOPPING
-                    ? "正在停止"
-                    : "未在录制"
-                }` +
-                "\n" +
-                (item.ar.liveRecorder.recStatus === 1
-                  ? `当前分段: ${item.ar.liveRecorder.segIndex}\n` +
-                    `当前帧率: ${item.ar.liveRecorder.recProgress?.currentFps || "未知"}\n` +
-                    `录制时长: ${item.ar.liveRecorder.recProgress?.timemark || "未知"}`
-                  : ``)
-              );
-            })
-            .join("\n\n") || "没有订阅的直播间"
+        const rooms = await bilibiliStore.state.db.getSubscribedRoomsByUserAndGroup(
+          user.user_id,
+          user.group_id
         );
+        const message = arm
+          .getArs()
+          .filter((item) => rooms.includes(item.ar.roomId))
+          .map((item) =>
+            BilibiliUtils.format.recordStatus(
+              item.ar.liveMonitor.roomInfo!,
+              item.ar.liveRecorder,
+              item.ar.liveMonitor.userInfo!
+            )
+          )
+          .flat() as Messages;
+        return message.length > 0 ? message : "您还没有订阅直播间";
       })
       .register("所有直播间", {}, () => {
-        return (
-          arm
-            .getArs()
-            .map((item) => {
-              return (
-                `直播间ID: ${item.ar.roomId}\n` +
-                `订阅人数: ${item.subscribers}\n\n` +
-                `直播状态: ${
-                  item.ar.liveMonitor.roomInfo?.live_status === 1 ? "直播中" : "未直播"
-                }\n` +
-                `直播间简介: ${item.ar.liveMonitor.roomInfo?.title}\n` +
-                `录制状态: ${item.ar.liveRecorder.recStatus === 1 ? "正在录制" : "未录制"}` +
-                (item.ar.liveRecorder.recStatus === 1
-                  ? `\n当前分段: ${item.ar.liveRecorder.segIndex}\n` +
-                    `当前帧率: ${item.ar.liveRecorder.recProgress?.currentFps || "未知"}\n` +
-                    `录制时长: ${item.ar.liveRecorder.recProgress?.timemark || "未知"}`
-                  : ``)
-              );
-            })
-            .join("\n\n") || "没有订阅的直播间"
-        );
+        const message = arm
+          .getArs()
+          .map((item) =>
+            BilibiliUtils.format.liveRoomInfo(
+              item.ar.liveMonitor.roomInfo!,
+              item.ar.liveMonitor.userInfo!
+            )
+          )
+          .flat() as Messages;
+        return message.length > 0 ? message : "无房间";
       })
       .register(
-        "task",
+        "任务进度",
         {
           steps: [{ prompt: "请输入任务ID: ", validator: (input) => !isNaN(parseInt(input)) }],
         },
@@ -287,7 +302,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
             .map(
               (item) =>
                 `${item.time} ${
-                  item.status === "success" ? "✔️" : item.status === "pending" ? "⏳" : "❌"
+                  item.status === "success" ? "✅" : item.status === "pending" ? "⏳" : "❌"
                 } ${item.name}`
             )
             .join("\n");
@@ -302,13 +317,13 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           const roomId = parseInt(params[0]);
           const ar = arm.getAr(roomId);
           if (!ar) return "未找到直播间";
-          if (ar.liveRecorder.recStatus !== 1) return "未在录制中";
+          if (ar.liveRecorder.recStatus !== 1) return "当前未在录制";
           ar.liveRecorder.stop();
-          return "停止录制成功";
+          return "停止录制中";
         }
       );
 
-    bot.on("group_message", async (e, reply) => {
+    bot.on("group_message", (e, reply) => {
       const gid = e.group_id;
       const qid = e.user_id;
       const raw = e.raw_message;
@@ -316,19 +331,25 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       const symbol = `${gid}_${qid}`;
 
       if (!gid || !qid || !raw || !message || !Array.isArray(message) || message.length === 0) {
-        logger.warn("[XzQBot Message Handler]", "由于消息格式错误，已拦截：", e);
+        if (typeof raw === "string" || (Array.isArray(message) && message.length === 0)) {
+          logger.warn("[XzQBot Message Handler]", "收到空白消息，已跳过处理");
+        } else {
+          logger.warn("[XzQBot Message Handler]", "由于消息格式错误，已拦截：", e);
+        }
         return;
       }
 
-      const resp = await handler.handleMessage(
-        {
-          group_id: gid,
-          user_id: qid,
-          symbol,
-        },
-        raw
-      );
-      if (resp) reply(resp);
+      // 处理消息
+      handler
+        .handleMessage({ group_id: gid, user_id: qid, symbol }, raw)
+        .then((resp) => {
+          resp && reply(resp).catch(this._messageSendError);
+        })
+        .catch((e) => logger.error("[XzQBot Message Handler]", "消息处理失败", e));
     });
+  }
+
+  private _messageSendError(e: any) {
+    logger.error("[XzQBot Message Handler]", "消息发送失败", e as Error);
   }
 }
