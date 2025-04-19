@@ -271,8 +271,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               item.ar.liveMonitor.userInfo!
             )
           )
-          .flat()
-          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } });
+          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } })
+          .flat();
         return message.length > 0 ? message : "您还没有订阅直播间";
       })
       .register("录制状态", {}, async (user) => {
@@ -290,8 +290,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               item.ar.liveMonitor.userInfo!
             )
           )
-          .flat()
-          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } });
+          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } })
+          .flat();
         return message.length > 0 ? message : "您还没有订阅直播间";
       })
       .register("所有直播间", {}, () => {
@@ -303,8 +303,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               item.ar.liveMonitor.userInfo!
             )
           )
-          .flat()
-          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } });
+          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } })
+          .flat();
         return message.length > 0 ? message : "无房间";
       })
       .register(
