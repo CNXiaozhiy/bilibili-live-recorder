@@ -131,6 +131,68 @@ export interface UserInfo {
   like_num: number;
 }
 
+export interface LoginInfo {
+  isLogin: boolean; // 是否已登录
+  email_verified: 0 | 1; // 是否验证邮箱地址	0：未验证 1：已验证
+  face: string;
+  level_info: {
+    current_level: number; // 当前等级
+    current_min: number; // 当前等级经验最低值
+    current_exp: number; // 当前经验
+    next_exp: number | "--"; // 小于6级时：num 6级时：str , 升级下一等级需达到的经验	当用户等级为Lv6时，值为--，代表无穷大
+  };
+  mid: number;
+  mobile_verified: 0 | 1; // 	是否验证手机号	0：未验证 1：已验证
+  money: number; // 拥有硬币数
+  moral: number; // 当前节操值
+  official: {
+    role: number; // 认证类型 见 https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/user/official_role.md
+    title: string; // 认证信息
+    desc: string; // 认证备注
+    type: 0 | -1; // 是否认证 -1：无 0：认证
+  }; // 认证信息
+  officialVerify: {
+    type: 0 | -1; // 是否认证 -1：无 0：认证
+    desc: string; // 认证信息
+  }; // 认证信息 2
+  pendant: {
+    pid: number; // 挂件id
+    name: string; // 挂件名称
+    image: string; //	挂件图片url
+    expire: number; //（？）
+  }; // 头像框信息
+  scores: number; // ?
+  uname: string; // 用户昵称
+  vipDueDate: number; // 会员到期时间 毫秒 时间戳
+  vipStatus: 0 | 1; // 会员开通状态 0：无 1：有
+  vipType: 0 | 1 | 2; // 	会员类型 0：无 1：月度大会员 2：年度及以上大会员
+  vip_pay_type: 0 | 1; // 会员开通状态 0：无 1：有
+  vip_theme_type: number; // ?
+  vip_label: {
+    path: string; //	（？）
+    text: string; //	会员名称
+    label_theme: "vip" | "annual_vip" | "ten_annual_vip" | "hundred_annual_vip"; //	会员标签	vip：大会员 annual_vip：年度大会员 ten_annual_vip：十年大会员 hundred_annual_vip：百年大会员
+  };
+  vip_avatar_subscript: 0 | 1; // 是否显示会员图标	0：不显示 1：显示
+  vip_nickname_color: string; // 会员昵称颜色	颜色码
+  wallet: {
+    mid: number; // 登录用户mid
+    bcoin_balance: number; //	拥有B币数
+    coupon_balance: number; //	每月奖励B币数
+    coupon_due_time: number; //	（？）
+  }; //	B币钱包信息
+  has_shop: boolean; // 是否拥有推广商品
+  shop_url: string; // 商品推广页面 url
+  allowance_count: number;
+  answer_status: number;
+  is_senior_member: 0 | 1; // 是否硬核会员
+  wbi_img: {
+    img_url: string; // Wbi 签名参数 imgKey的伪装 url	详见文档 https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md
+    sub_url: string; // Wbi 签名参数 subKey的伪装 url	详见文档 https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md
+  };
+  is_jury: boolean; // 是否风纪委员
+}
+
 export interface LiveRoomInfo {
   uid: number;
   room_id: number;

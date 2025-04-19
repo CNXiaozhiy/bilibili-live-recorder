@@ -9,7 +9,7 @@ import { ISubAdapter } from ".";
 import { IXzQbot } from "@/types/xzqbot";
 import CommandHandler, { UserBase } from "@/utils/message";
 import BilibiliUtils from "@/utils/bilibili";
-import { Messages } from "@/types/one-bot";
+import { SegmentMessage } from "@/types/one-bot";
 
 export default class XzQbotNotificationAdapter implements ISubAdapter {
   public name = "xz-qbot";
@@ -29,7 +29,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       this.xzQbot
         .getLoginInfo()
         .then((info) => {
-          logger.info("[XzQBot Adapter]", "XzQBot 对接成功");
+          logger.info("[XzQBot Adapter]", "XzQBot 对接成功✅");
+          logger.info("[XzQBot Account]", "XzQBot 登录成功✅");
           logger.info("[XzQBot Account Info]", "机器人QQ:", info.data.user_id);
           logger.info("[XzQBot Account Info]", "机器人昵称:", info.data.nickname);
 
@@ -101,6 +102,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           .sendGroup(group_id, [
             { type: "text", data: { text: `您订阅的直播间开始直播啦\n\n` } },
             ...BilibiliUtils.format.liveRoomInfo(liveMonitor.roomInfo!, liveMonitor.userInfo!),
+            { type: "text", data: { text: "\n\n" } },
             ...generateAt(user_id),
           ])
           .catch(this._messageSendError);
@@ -269,7 +271,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               item.ar.liveMonitor.userInfo!
             )
           )
-          .flat() as Messages;
+          .flat()
+          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } });
         return message.length > 0 ? message : "您还没有订阅直播间";
       })
       .register("录制状态", {}, async (user) => {
@@ -287,7 +290,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               item.ar.liveMonitor.userInfo!
             )
           )
-          .flat() as Messages;
+          .flat()
+          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } });
         return message.length > 0 ? message : "您还没有订阅直播间";
       })
       .register("所有直播间", {}, () => {
@@ -299,7 +303,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               item.ar.liveMonitor.userInfo!
             )
           )
-          .flat() as Messages;
+          .flat()
+          .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } });
         return message.length > 0 ? message : "无房间";
       })
       .register(

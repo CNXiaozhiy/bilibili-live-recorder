@@ -2,7 +2,7 @@ import crypto from "crypto";
 import request from "@/utils/http";
 import BilibiliUtils from "@/utils/bilibili";
 import bilibiliCachePool from "@/store/pool";
-import { LiveRoomInfo, LiveRoomPlayInfo, VideoInfo, UserInfo } from "@/types/bilibili";
+import { LiveRoomInfo, LiveRoomPlayInfo, VideoInfo, UserInfo, LoginInfo } from "@/types/bilibili";
 
 type BaseResponse<T = any> = {
   code: number;
@@ -377,4 +377,17 @@ export async function getImageBase64FromUrl(url: string): Promise<string> {
     const imageUrl = `data:image/png;base64,${imgBase64}`;
     resolve(imageUrl);
   });
+}
+
+export async function getAccountInfo(cookie: string) {
+  const resp = await request<BaseResponse<LoginInfo>>(
+    "https://api.bilibili.com/x/web-interface/nav",
+    {
+      headers: { cookie },
+    }
+  );
+
+  checkResponseCode(resp.data);
+
+  return resp.data;
 }

@@ -1,4 +1,6 @@
 import "@/utils/env";
+import "@/utils/extensions";
+
 import logger from "@/logger";
 logger.logo();
 

@@ -1,5 +1,5 @@
 import XzLogger from "@/utils/xz-logger";
-import { logo } from "./logo";
+import logo from "./logo";
 
 class Logger extends XzLogger {
   constructor() {

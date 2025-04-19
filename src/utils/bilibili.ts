@@ -14,7 +14,7 @@ import {
   refreshCookie,
 } from "@/lib/bilibili/api";
 import { Bilibili, BilibiliUploaderOptions, LiveRoomInfo, UserInfo } from "@/types/bilibili";
-import { Messages, SegmentMessages } from "@/types/one-bot";
+import { SegmentMessages } from "@/types/one-bot";
 
 async function login() {
   let retryTimes = 0;
@@ -193,7 +193,6 @@ const format = {
     return [
       // { type: "image", data: { file: roomInfo.user_cover } },
       { type: "text", data: { text } },
-      { type: "text", data: { text: "\n\n" } },
     ];
   },
   liveRoomInfo: (roomInfo: LiveRoomInfo, upUserInfo?: UserInfo): SegmentMessages => {
@@ -209,7 +208,6 @@ const format = {
     return [
       { type: "image", data: { file: roomInfo.user_cover } },
       { type: "text", data: { text } },
-      { type: "text", data: { text: "\n\n" } },
     ];
   },
 };

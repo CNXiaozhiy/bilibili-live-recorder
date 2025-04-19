@@ -12,8 +12,8 @@
     "build": "webpack --mode production",
     "tsc": "tsc && tsc-alias",
     "prod": "node dist/bundle.js",
-    "devx": "cross-env NODE_ENV=development nodemon --watch src --exec ts-node -r tsconfig-paths/register src/app.ts",
-    "dev": "cross-env NODE_ENV=development ts-node -r tsconfig-paths/register src/app.ts"
+    "devx": "cross-env NODE_ENV=development nodemon --watch src --exec ts-node -r tsconfig-paths/register --files src/app.ts",
+    "dev": "cross-env NODE_ENV=development ts-node -r tsconfig-paths/register --files src/app.ts"
   },
   "dependencies": {
     "axios": "^1.8.4",
