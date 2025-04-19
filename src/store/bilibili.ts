@@ -27,7 +27,7 @@ let initPromise = new Promise<void>(async (resolve) => {
   resolve();
 });
 
-export default {
+const bilibiliStore = {
   ready: initPromise,
 
   get state(): StoreState {
@@ -42,3 +42,5 @@ export default {
     state = { ...state, ...newState };
   },
 };
+
+export default bilibiliStore;

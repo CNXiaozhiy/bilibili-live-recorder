@@ -49,23 +49,22 @@ export default class BilibiliUploader {
   private async upload(options: BilibiliUploaderOptions, taskId: number) {
     const taskList: BilibiliUploaderTask["status"] = (this.taskMap.get(taskId)!.status = []);
 
-    function updateProgress(
-      name?: string,
-      status: "pending" | "success" | "error" = "pending",
-      cover: boolean = false
-    ) {
-      //   const statusText = status === "success" ? "成功✔️" : status === "error" ? "失败❌" : "等待⏳";
-      //   const taskState = `${moment().format("HH:mm:ss")} ${statusText} ${name}`;
+    /*
+      function updateProgress(
+        name?: string,
+        status: "pending" | "success" | "error" = "pending",
+        cover: boolean = false
+      ) {
+        const currentTask = taskList[taskList.length - 1];
+        const task = { name: name || currentTask.name, status, time: moment().format("HH:mm:ss") };
 
-      const currentTask = taskList[taskList.length - 1];
-      const task = { name: name || currentTask.name, status, time: moment().format("HH:mm:ss") };
-
-      if (!name || cover) {
-        taskList[taskList.length - 1] = task;
-      } else {
-        taskList.push(task);
+        if (!name || cover) {
+          taskList[taskList.length - 1] = task;
+        } else {
+          taskList.push(task);
+        }
       }
-    }
+    */
 
     const csrf = BilibiliUtils.getCSRF(this.cookie);
 
@@ -78,14 +77,20 @@ export default class BilibiliUploader {
 
     try {
       // 预上传 - 注册视频存储空间
-      updateProgress("注册视频存储空间");
+      // updateProgress("注册视频存储空间");
+      taskList[0] = {
+        name: "注册视频存储空间",
+        status: "pending",
+        time: moment().format("HH:mm:ss"),
+      };
 
       const registerVideoStorageResp = await registerVideoStorage(this.cookie, {
         file_name: video_file_name,
         file_size: video_file_size,
       });
 
-      updateProgress(undefined, "success");
+      // updateProgress(undefined, "success");
+      taskList[0].status = "success";
 
       const { endpoint, auth, biz_id } = registerVideoStorageResp;
 
@@ -95,7 +100,12 @@ export default class BilibiliUploader {
       const bili_file_name = path.parse(upos_uri).name;
 
       // 获取上传ID
-      updateProgress("获取上传ID");
+      // updateProgress("获取上传ID");
+      taskList[1] = {
+        name: "获取上传ID",
+        status: "pending",
+        time: moment().format("HH:mm:ss"),
+      };
 
       const { upload_id } = await getUploadID(this.cookie, {
         upload_url,
@@ -105,18 +115,26 @@ export default class BilibiliUploader {
         auth,
       });
 
-      updateProgress(undefined, "success");
+      // updateProgress(undefined, "success");
+      taskList[1].status = "success";
 
       // 分片上传
-      updateProgress("视频分片上传");
+      // updateProgress("视频分片上传");
+      taskList[2] = {
+        name: "视频分片上传",
+        status: "pending",
+        time: moment().format("HH:mm:ss"),
+      };
 
-      const limit = pLimit(3); // 设置并发数为 3
+      const limit = pLimit(10); // 设置并发数为 10
       const uploadPromises = [];
       let successCount = 0;
 
       const createTask = (i: number) =>
         limit(async () => {
-          updateProgress(`视频分片上传 ${successCount}/${totalChunks} /${i + 1}`, "pending", true);
+          // updateProgress(`视频分片上传 ${successCount}/${totalChunks} /${i + 1}`, "pending", true);
+          taskList[2].process = successCount + "/" + totalChunks + " /" + (i + 1);
+
           await this.uploadChunk(
             i,
             upload_url,
@@ -135,10 +153,17 @@ export default class BilibiliUploader {
 
       await Promise.all(uploadPromises);
 
-      updateProgress("视频分片上传 " + totalChunks + "/" + totalChunks, "success", true);
+      // updateProgress("视频分片上传 " + totalChunks + "/" + totalChunks, "success", true);
+      taskList[2].process = totalChunks + "/" + totalChunks;
+      taskList[2].status = "success";
 
       // 合片
-      updateProgress("视频合片（校验）");
+      // updateProgress("视频合片（校验）");
+      taskList[3] = {
+        name: "视频合片（校验）",
+        status: "pending",
+        time: moment().format("HH:mm:ss"),
+      };
 
       await validateVideo(this.cookie, {
         upload_url,
@@ -148,20 +173,32 @@ export default class BilibiliUploader {
         upload_id,
       });
 
-      updateProgress(undefined, "success");
+      // updateProgress(undefined, "success");
+      taskList[3].status = "success";
 
       // 上传封面
-      updateProgress("上传封面");
+      // updateProgress("上传封面");
+      taskList[4] = {
+        name: "上传封面",
+        status: "pending",
+        time: moment().format("HH:mm:ss"),
+      };
 
       const { url: cover_url } = await uploadCover(this.cookie, {
         csrf,
         cover: cover_base64,
       });
 
-      updateProgress(undefined, "success");
+      // updateProgress(undefined, "success");
+      taskList[4].status = "success";
 
       // 投稿视频
-      updateProgress("正式投稿视频");
+      // updateProgress("正式投稿视频");
+      taskList[5] = {
+        name: "正式投稿视频",
+        status: "pending",
+        time: moment().format("HH:mm:ss"),
+      };
 
       const resp = await uploadVideo(this.cookie, {
         csrf,
@@ -202,12 +239,14 @@ export default class BilibiliUploader {
         },
       });
 
-      updateProgress(undefined, "success");
+      // updateProgress(undefined, "success");
+      taskList[5].status = "success";
 
       logger.info("[Bili Uploader]", "投稿成功 -> ", resp);
       return resp;
     } catch (error) {
-      updateProgress(undefined, "error");
+      // updateProgress(undefined, "error");
+      taskList[taskList.length - 1].status = "error";
       throw error;
     }
   }
@@ -254,6 +293,7 @@ export default class BilibiliUploader {
         },
         data: chunk,
         maxBodyLength: Infinity,
+        timeout: 10000,
       });
 
       logger.info("[Bili Uploader]", `视频分片上传 ${chunkIndex + 1}/${totalChunks}`, resp.data);

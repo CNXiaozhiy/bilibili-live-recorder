@@ -21,7 +21,7 @@ export class Adapter {
     });
   }
 
-  install(ar: BilibiliLiveArManager) {
-    this.adapters.forEach((adapter) => adapter.install(ar));
+  install(arm: BilibiliLiveArManager) {
+    this.adapters.forEach((adapter) => adapter.install(arm));
   }
 }

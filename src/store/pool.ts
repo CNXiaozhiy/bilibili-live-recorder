@@ -6,10 +6,10 @@ const DELAY = process.env.CACHE_POOL_UPDATE_DELAY
   ? parseInt(process.env.CACHE_POOL_UPDATE_DELAY)
   : 60 * 60 * 1000;
 
-export const videoInfo = new Map<string, VideoInfo>(); // bvid
-export const upUserInfo = new Map<number, UserInfo>(); // mid
+const videoInfo = new Map<string, VideoInfo>(); // bvid
+const upUserInfo = new Map<number, UserInfo>(); // mid
 
-export const updateVideoInfo = async () => {
+const updateVideoInfo = async () => {
   const videos = Array.from(videoInfo.keys());
   videos.forEach(async (bvid) => {
     try {
@@ -21,7 +21,7 @@ export const updateVideoInfo = async () => {
   });
 };
 
-export const updateUpUserInfo = async () => {
+const updateUpUserInfo = async () => {
   const users = Array.from(upUserInfo.keys());
   users.forEach(async (uid) => {
     try {
@@ -33,12 +33,23 @@ export const updateUpUserInfo = async () => {
   });
 };
 
-export const updateAll = async () => {
+const updateAll = async () => {
   logger.info("[Cache Pool]", "更新缓存池");
   await updateVideoInfo();
   await updateUpUserInfo();
   logger.info("[Cache Pool]", "更新缓存池完成");
 };
 
-updateAll();
+const ready = updateAll();
 setInterval(updateAll, DELAY);
+
+const bilibiliCachePool = {
+  ready,
+  videoInfo,
+  upUserInfo,
+  updateVideoInfo,
+  updateUpUserInfo,
+  updateAll,
+};
+
+export default bilibiliCachePool;

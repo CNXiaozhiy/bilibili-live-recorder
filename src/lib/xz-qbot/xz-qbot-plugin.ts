@@ -17,10 +17,10 @@ export default class XzQbotPlugin extends EventEmitter {
   constructor(_bot: XzQbot | string, private meta: MetaData) {
     super();
     typeof _bot === "string" ? (this._botInstance = new XzQbot(_bot)) : (this._botInstance = _bot);
-    this._botInstance.connect().then(() => this._init());
+    this._botInstance.connect().then(() => this.init());
   }
 
-  private _init() {
+  private init() {
     this._ready = true;
     this.emit("ready");
 
@@ -45,11 +45,11 @@ export default class XzQbotPlugin extends EventEmitter {
   }
 
   get ready() {
-    return this._ready
-      ? Promise.resolve()
-      : new Promise((resolve, reject) => {
-          this.on("ready", resolve);
-          this.on("error", reject);
-        });
+    if (this._ready) return Promise.resolve();
+    if (this._error) return Promise.reject();
+    return new Promise<void>((resolve, reject) => {
+      this.on("ready", resolve);
+      this.on("error", reject);
+    });
   }
 }

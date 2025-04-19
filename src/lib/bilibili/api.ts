@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import request from "@/utils/http";
 import BilibiliUtils from "@/utils/bilibili";
-import { upUserInfo, videoInfo } from "@/store/pool";
+import bilibiliCachePool from "@/store/pool";
 import { LiveRoomInfo, LiveRoomPlayInfo, VideoInfo, UserInfo } from "@/types/bilibili";
 
 type BaseResponse<T = any> = {
@@ -189,7 +189,7 @@ export async function getLiveRoomInfo(roomId: string | number, cookie?: string, 
 export async function getVideoInfo(bvid: string, cookie?: string, useCache = true) {
   // 使用 Cache Pool
   if (useCache) {
-    const cache = videoInfo.get(bvid);
+    const cache = bilibiliCachePool.videoInfo.get(bvid);
     if (cache) return cache;
   }
 
@@ -205,7 +205,7 @@ export async function getVideoInfo(bvid: string, cookie?: string, useCache = tru
 
   checkResponseCode(resp.data);
 
-  videoInfo.set(bvid, resp.data.data);
+  bilibiliCachePool.videoInfo.set(bvid, resp.data.data);
   return resp.data.data;
 }
 
@@ -214,7 +214,7 @@ export async function getUpUserInfo(mid: string | number, cookie?: string, useCa
 
   // 使用 Cache Pool
   if (useCache) {
-    const cache = upUserInfo.get(mid);
+    const cache = bilibiliCachePool.upUserInfo.get(mid);
     if (cache) return cache;
   }
 
@@ -227,7 +227,7 @@ export async function getUpUserInfo(mid: string | number, cookie?: string, useCa
 
   checkResponseCode(resp.data);
 
-  upUserInfo.set(mid, resp.data.data);
+  bilibiliCachePool.upUserInfo.set(mid, resp.data.data);
   return resp.data.data;
 }
 

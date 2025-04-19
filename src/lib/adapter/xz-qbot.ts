@@ -5,7 +5,7 @@ import BilibiliLiveArManager from "../bilibili/live-ar-manager";
 import BilibiliAutoUploader from "../bilibili/live-auto-uploader";
 import bilibiliStore from "@/store/bilibili";
 import { getLiveRoomInfo, getUpUserInfo } from "../bilibili/api";
-import { ISubAdapter } from "./adapter";
+import { ISubAdapter } from ".";
 import { IXzQbot } from "@/types/xzqbot";
 import CommandHandler, { UserBase } from "@/utils/message";
 import BilibiliUtils from "@/utils/bilibili";
@@ -119,10 +119,23 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       });
     });
 
+    liveMonitor.on("live-slideshow", () => {
+      if (isFirst(room_id)) return;
+    });
+
     liveRecorder.on("rec-end", () => {
       groups.forEach((group_id) => {
         bot
-          .sendGroup(group_id, [{ type: "text", data: { text: `直播间 ${room_id} 录制结束` } }])
+          .sendGroup(group_id, [
+            {
+              type: "text",
+              data: {
+                text: `直播间 ${room_id} 录制结束\n\n录制时长: ${
+                  liveRecorder.recProgress?.timemark || "未知"
+                }`,
+              },
+            },
+          ])
           .catch(this._messageSendError);
       });
     });
@@ -303,7 +316,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               (item) =>
                 `${item.time} ${
                   item.status === "success" ? "✅" : item.status === "pending" ? "⏳" : "❌"
-                } ${item.name}`
+                } ${item.name} ${item.process || ""}`
             )
             .join("\n");
         }
