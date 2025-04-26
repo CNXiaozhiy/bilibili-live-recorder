@@ -9,7 +9,7 @@ import FileNameUtils from "./file-name";
 import BilibiliUtils from "./bilibili";
 
 async function checkRecordMetaCanReused(recordFileMetaMap: Map<string, RecordFileMeta>) {
-  recordFileMetaMap.forEach(async (value, key) => {
+  for (const [key, value] of recordFileMetaMap) {
     const roomInfo = await getLiveRoomInfo(value.room_id);
     if (
       roomInfo.live_status !== 1 ||
@@ -71,12 +71,12 @@ async function checkRecordMetaCanReused(recordFileMetaMap: Map<string, RecordFil
     } else {
       logger.info("[Task Recovery]", value.hash, `直播未结束，等待录制器复用`);
     }
-  });
+  }
 }
 
 async function recoverUpload(uploadMeteFilesMap: Map<string, UploadFileMeta>) {
   const uploader = bilibiliStore.state.publicUploader;
-  uploadMeteFilesMap.forEach(async (value, key) => {
+  for (const [key, value] of uploadMeteFilesMap) {
     logger.info("[Task Recovery]", `开始恢复投稿 ${value.hash} ${value.room_id}⏳`);
     const { id, upload } = uploader.createTask(value.uploaderOptions);
     logger.info("[Task Recovery]", value.hash, `开始上传 TaskID: ${id}`);
@@ -102,7 +102,7 @@ async function recoverUpload(uploadMeteFilesMap: Map<string, UploadFileMeta>) {
     } catch (error) {
       logger.error("[Task Recovery]", value.hash, `${value.hash} 投稿失败❌`, error);
     }
-  });
+  }
 }
 
 export async function taskRecovery() {

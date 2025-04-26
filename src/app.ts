@@ -22,7 +22,7 @@ const app = async () => {
 
   adapterStore.adapterInstance.install(arm);
 
-  await taskRecovery();
+  taskRecovery().catch((e) => logger.error("[Task Recovery]", "任务恢复失败 -> ", e));
 };
 
 Promise.all(fes)
