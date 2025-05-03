@@ -251,10 +251,19 @@ export async function registerVideoStorage(
 ) {
   const resp = await request<{
     OK: number;
-    upos_uri: string;
-    endpoint: string;
     auth: string;
     biz_id: string;
+    chunk_retry: number;
+    chunk_retry_delay: number;
+    chunk_size: number;
+    endpoint: string;
+    endpoints: string[];
+    expose_params: null;
+    put_query: string;
+    threads: number;
+    timeout: number;
+    uip: string;
+    upos_uri: string;
   }>(
     `https://member.bilibili.com/preupload?name=${options.file_name}&upcdn=bldsa&zone=cs&r=upos&profile=ugcfx%2Fbup&ssl=0&size=${options.file_size}&version=2.14.0.0`,
     {

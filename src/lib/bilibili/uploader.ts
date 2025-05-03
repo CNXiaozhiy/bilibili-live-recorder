@@ -19,14 +19,14 @@ interface BilibiliUploaderTask {
 }
 
 export default class BilibiliUploader {
+  static CHUNK_UPLOAD_TIMEOUT = 60 * 1000;
+
   cookie: string;
-  CHUNK_SIZE: number;
 
   taskMap = new Map<number, BilibiliUploaderTask>();
   taskNowMaxId = 0;
 
-  constructor(cookie: string, CHUNK_SIZE = 5 * 1024 * 1024) {
-    this.CHUNK_SIZE = CHUNK_SIZE;
+  constructor(cookie: string) {
     this.cookie = cookie;
   }
 
@@ -48,6 +48,10 @@ export default class BilibiliUploader {
 
   private async upload(options: BilibiliUploaderOptions, taskId: number) {
     const taskList: BilibiliUploaderTask["status"] = (this.taskMap.get(taskId)!.status = []);
+
+    function getFormatTime(time?: number) {
+      return moment(time).format("yyyy-MM-DD HH:mm:ss");
+    }
 
     /*
       function updateProgress(
@@ -73,7 +77,6 @@ export default class BilibiliUploader {
     const cover_base64 = options.cover_base64;
     const video_file_name = path.basename(video_file_path);
     const video_file_size = fs.statSync(video_file_path).size;
-    const totalChunks = Math.ceil(video_file_size / this.CHUNK_SIZE);
 
     try {
       // 预上传 - 注册视频存储空间
@@ -81,7 +84,7 @@ export default class BilibiliUploader {
       taskList[0] = {
         name: "注册视频存储空间",
         status: "pending",
-        time: moment().format("HH:mm:ss"),
+        time: getFormatTime(),
       };
 
       const registerVideoStorageResp = await registerVideoStorage(this.cookie, {
@@ -92,7 +95,9 @@ export default class BilibiliUploader {
       // updateProgress(undefined, "success");
       taskList[0].status = "success";
 
-      const { endpoint, auth, biz_id } = registerVideoStorageResp;
+      const { endpoint, auth, biz_id, chunk_size, threads, timeout } = registerVideoStorageResp;
+
+      const totalChunks = Math.ceil(video_file_size / chunk_size);
 
       // 整理信息
       const upos_uri = registerVideoStorageResp.upos_uri.replace("upos://", "");
@@ -104,13 +109,13 @@ export default class BilibiliUploader {
       taskList[1] = {
         name: "获取上传ID",
         status: "pending",
-        time: moment().format("HH:mm:ss"),
+        time: getFormatTime(),
       };
 
       const { upload_id } = await getUploadID(this.cookie, {
         upload_url,
         file_size: video_file_size,
-        partsize: this.CHUNK_SIZE,
+        partsize: chunk_size,
         biz_id,
         auth,
       });
@@ -123,10 +128,10 @@ export default class BilibiliUploader {
       taskList[2] = {
         name: "视频分片上传",
         status: "pending",
-        time: moment().format("HH:mm:ss"),
+        time: getFormatTime(),
       };
 
-      const limit = pLimit(10); // 设置并发数为 10
+      const limit = pLimit(threads || 3);
       const uploadPromises = [];
       let successCount = 0;
 
@@ -137,6 +142,7 @@ export default class BilibiliUploader {
 
           await this.uploadChunk(
             i,
+            chunk_size,
             upload_url,
             auth,
             upload_id,
@@ -162,7 +168,7 @@ export default class BilibiliUploader {
       taskList[3] = {
         name: "视频合片（校验）",
         status: "pending",
-        time: moment().format("HH:mm:ss"),
+        time: getFormatTime(),
       };
 
       await validateVideo(this.cookie, {
@@ -181,7 +187,7 @@ export default class BilibiliUploader {
       taskList[4] = {
         name: "上传封面",
         status: "pending",
-        time: moment().format("HH:mm:ss"),
+        time: getFormatTime(),
       };
 
       const { url: cover_url } = await uploadCover(this.cookie, {
@@ -197,7 +203,7 @@ export default class BilibiliUploader {
       taskList[5] = {
         name: "正式投稿视频",
         status: "pending",
-        time: moment().format("HH:mm:ss"),
+        time: getFormatTime(),
       };
 
       const resp = await uploadVideo(this.cookie, {
@@ -253,6 +259,7 @@ export default class BilibiliUploader {
 
   private async uploadChunk(
     chunkIndex: number,
+    chunk_size: number,
     upload_url: string,
     auth: string,
     upload_id: string,
@@ -260,8 +267,8 @@ export default class BilibiliUploader {
     video_file_path: string,
     video_file_size: number
   ) {
-    const start = chunkIndex * this.CHUNK_SIZE;
-    const end = Math.min(start + this.CHUNK_SIZE, video_file_size);
+    const start = chunkIndex * chunk_size;
+    const end = Math.min(start + chunk_size, video_file_size);
     const chunkSize = end - start;
 
     const chunk = fs.createReadStream(video_file_path, { start, end });
@@ -293,7 +300,7 @@ export default class BilibiliUploader {
         },
         data: chunk,
         maxBodyLength: Infinity,
-        timeout: 10000,
+        timeout: BilibiliUploader.CHUNK_UPLOAD_TIMEOUT,
       });
 
       logger.info("[Bili Uploader]", `视频分片上传 ${chunkIndex + 1}/${totalChunks}`, resp.data);
@@ -306,6 +313,7 @@ export default class BilibiliUploader {
       logger.warn("[Bili Uploader]", `开始递归重试`);
       await this.uploadChunk(
         chunkIndex,
+        chunk_size,
         upload_url,
         auth,
         upload_id,
