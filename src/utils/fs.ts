@@ -3,10 +3,15 @@
 import fs from "fs";
 import path from "path";
 import { v4 } from "uuid";
+import { shutdownManager } from "./shutdown-manager";
 
 const ERROR_DESTROYED = "FolderVersionManager 已销毁";
 
 const globalTempFolderPath = fs.mkdtempSync(path.join(process.cwd(), "temp-"));
+
+shutdownManager.registerCleanupTask(() => {
+  fs.rmdirSync(globalTempFolderPath);
+});
 
 export class FsUtils {
   static copyFolderSync(from: string, to: string) {

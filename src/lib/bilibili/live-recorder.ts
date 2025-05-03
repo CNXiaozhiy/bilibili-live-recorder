@@ -18,6 +18,7 @@ import logger from "@/logger";
 import FileNameUtils from "@/utils/file-name";
 import FfpmegUtils from "@/utils/ffmpeg";
 import FileTreeParse from "./file-tree-parse";
+import { shutdownManager } from "@/utils/shutdown-manager";
 
 export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents> {
   public roomId;
@@ -41,6 +42,18 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     super();
     this.roomId = typeof options.roomId === "number" ? options.roomId : parseInt(options.roomId);
     this.saveRecordFolder = options.saveRecordFolder;
+
+    shutdownManager.registerCleanupTask(() => {
+      return new Promise<void>((resolve) => {
+        if (!this.recCommand) return resolve();
+        this.recCommand.removeAllListeners();
+        this.recCommand.addListener("end", () => {
+          logger.info("[Live Recorder Cleanup]", "Command End -> " + this.recHash);
+          resolve();
+        });
+        this._stop();
+      });
+    });
   }
 
   private getRecordFileMetaFilePath() {
