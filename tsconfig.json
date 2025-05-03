@@ -15,6 +15,6 @@
     },
     "sourceMap": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../MyCode/temp/ShutdownManager.ts"],
   "exclude": ["node_modules", "dist"]
 }

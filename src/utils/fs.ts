@@ -2,8 +2,11 @@
 
 import fs from "fs";
 import path from "path";
+import { v4 } from "uuid";
 
 const ERROR_DESTROYED = "FolderVersionManager 已销毁";
+
+const globalTempFolderPath = fs.mkdtempSync(path.join(process.cwd(), "temp-"));
 
 export class FsUtils {
   static copyFolderSync(from: string, to: string) {
@@ -34,6 +37,11 @@ export class FsUtils {
         const itemPath = path.join(folderPath, item);
         fs.rmSync(itemPath, { recursive: true, force: true });
       });
+  }
+
+  static createTempFilePath(ext: string, tempFolderPath?: string): string {
+    if (!tempFolderPath) tempFolderPath = globalTempFolderPath;
+    return path.join(tempFolderPath, `${v4()}.tmp.${ext}`);
   }
 
   static get fs() {

@@ -25,9 +25,16 @@ const deleteRecordFile = (file: string) => {
   }
 };
 
+function addNecessaryInfo(cmd: ffmpeg.FfmpegCommand): ffmpeg.FfmpegCommand {
+  return cmd.addInputOption(
+    "-headers",
+    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36\r\nReferer: https://live.bilibili.com/"
+  );
+}
+
 const FfpmegUtils = {
-  rec(input: string, output: string) {
-    return ffmpeg(input)
+  rec(input: string, output: string): ffmpeg.FfmpegCommand {
+    return addNecessaryInfo(ffmpeg(input))
       .addInputOption(
         "-headers",
         "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36\r\nReferer: https://live.bilibili.com/"
@@ -35,7 +42,7 @@ const FfpmegUtils = {
       .output(output)
       .outputOptions("-c copy");
   },
-  concat({ inputFileList, outputPath, autoDelete = true }: FfmpegConcatOptions) {
+  concat({ inputFileList, outputPath, autoDelete = true }: FfmpegConcatOptions): Promise<string> {
     const inputListFilePath = path.join(path.dirname(outputPath), `input_list_${Date.now()}.txt`);
 
     const inputListContent = inputFileList.map((file) => `file '${file}'`).join("\n");
@@ -57,6 +64,21 @@ const FfpmegUtils = {
           fs.unlinkSync(inputListFilePath);
           reject(err);
         })
+        .run();
+    });
+  },
+  captureScreenshot(streamUrl: string, outputPath: string, quality = 2): Promise<void> {
+    return new Promise((resolve, reject) => {
+      addNecessaryInfo(ffmpeg(streamUrl))
+        .inputOptions([`-timeout ${30 * 1e6}`])
+        .output(outputPath)
+        .outputOptions(["-vframes 1", "-q:v " + quality])
+        .native()
+        .noAudio()
+        .on("start", (cmd) => logger.debug("[Ffmpeg Capture] start", `执行命令: ${cmd}`))
+        .on("error", (err) => reject(new Error(`截图失败: ${err.message}`)))
+        // .on("stderr", (line) => logger.info("[Ffmpeg Capture] stderr", line))
+        .on("end", () => resolve())
         .run();
     });
   },

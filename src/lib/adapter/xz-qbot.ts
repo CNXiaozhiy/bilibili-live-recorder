@@ -4,12 +4,15 @@ import BilibiliLiveMonitor from "../bilibili/live-monitor";
 import BilibiliLiveArManager from "../bilibili/live-ar-manager";
 import BilibiliAutoUploader from "../bilibili/live-auto-uploader";
 import bilibiliStore from "@/store/bilibili";
-import { getLiveRoomInfo, getUpUserInfo } from "../bilibili/api";
+import { getLiveRoomInfo, getLiveStreamUrl, getUpUserInfo } from "../bilibili/api";
 import { ISubAdapter } from ".";
 import { IXzQbot } from "@/types/xzqbot";
 import CommandHandler, { UserBase } from "@/utils/message";
 import BilibiliUtils from "@/utils/bilibili";
-import { SegmentMessage } from "@/types/one-bot";
+import FfpmegUtils from "@/utils/ffmpeg";
+import { FsUtils } from "@/utils/fs";
+import ImageUtils from "@/utils/image";
+import { SegmentMessage, SegmentMessages } from "@/types/one-bot";
 import { getPackageJson } from "@/utils/package";
 import { Bilibili } from "@/types/bilibili";
 
@@ -220,7 +223,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       | "任务进度"
       | "所有直播间"
       | "结束录制"
-      | "设置快捷订阅";
+      | "设置快捷订阅"
+      | "直播间图片";
 
     const handler = new CommandHandler<Commands, User>();
 
@@ -412,6 +416,55 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           const roomId = parseInt(params[0]);
           await bilibiliStore.state.db.setQuickSubscribe(user.group_id, roomId);
           return `设置成功！\n\n群聊: ${user.group_id}\n直播间ID: ${roomId}`;
+        }
+      )
+      .register(
+        "直播间图片",
+        {
+          steps: [
+            {
+              prompt: "是否使用高清图片，这可能会显著延长响应时间 (y/n)",
+              required: false,
+            },
+          ],
+        },
+        async (user, params) => {
+          const rooms = await bilibiliStore.state.db.getSubscribedRoomsByUserAndGroup(
+            user.user_id,
+            user.group_id
+          );
+          if (rooms.length === 0) return "没有订阅的直播间";
+
+          const useHighQuality = params[0] === "y";
+          try {
+            const messages: SegmentMessages[] = [];
+            for (const id of rooms) {
+              const liveRoomInfo = arm.getAr(id)!.liveMonitor.roomInfo!;
+              if (liveRoomInfo.live_status !== Bilibili.LiveRoomStatus.LIVE) {
+                messages.push([{ type: "text", data: { text: `直播间 ${id} 未开播` } }]);
+                continue;
+              }
+              const urls = await getLiveStreamUrl(id);
+              const tempFile = FsUtils.createTempFilePath(useHighQuality ? ".png" : ".jpg");
+              if (useHighQuality) {
+                await FfpmegUtils.captureScreenshot(urls[0], tempFile);
+              } else {
+                await FfpmegUtils.captureScreenshot(urls[0], tempFile, 6);
+              }
+              const base64 = ImageUtils.toBase64(tempFile);
+              FsUtils.fs.unlinkSync(tempFile);
+              messages.push([
+                { type: "text", data: { text: `直播间 ${id} 实时图片\n` } },
+                { type: "image", data: { file: `base64://${base64}` } },
+              ]);
+            }
+            return messages
+              .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } })
+              .flat();
+          } catch (error) {
+            logger.error("[XzQBot Message Handler]", "直播间截图失败", error as Error);
+            return "失败: " + (error as Error).message;
+          }
         }
       );
 
