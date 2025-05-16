@@ -5,6 +5,7 @@ import logger from "@/logger";
 logger.logo();
 
 import "./env";
+import "./file-clean";
 
 import bilibiliCachePool from "@/store/pool";
 import bilibiliStore from "@/store/bilibili";

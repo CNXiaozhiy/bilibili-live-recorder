@@ -445,7 +445,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
                 continue;
               }
               const urls = await getLiveStreamUrl(id);
-              const tempFile = FsUtils.createTempFilePath(useHighQuality ? ".png" : ".jpg");
+              const tempFile = FsUtils.createTempFilePath(useHighQuality ? "png" : "jpg");
               if (useHighQuality) {
                 await FfpmegUtils.captureScreenshot(urls[0], tempFile);
               } else {
