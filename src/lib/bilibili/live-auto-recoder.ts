@@ -32,6 +32,10 @@ export default class BilibiliLiveAutoRecorder {
     this.liveMonitor.on("live-start", () => {
       this.liveRecorder.rec();
     });
+
+    this.liveMonitor.on("live-end", () => {
+      this.liveRecorder.stop();
+    });
   }
 
   destroy() {

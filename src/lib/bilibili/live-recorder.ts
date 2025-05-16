@@ -4,7 +4,7 @@ import crypto from "crypto";
 import ffmpeg from "fluent-ffmpeg";
 import moment from "moment";
 import EventEmitter from "events";
-import { getLiveRoomInfo, getLiveStreamUrl, isLiveStreamAvailable } from "./api";
+import { getLiveRoomInfo, getLiveStreamUrl, getAvailableLiveStream } from "./api";
 import {
   LiveRecoderEvents,
   Bilibili,
@@ -20,11 +20,20 @@ import FfpmegUtils from "@/utils/ffmpeg";
 import FileTreeParse from "./file-tree-parse";
 import { shutdownManager } from "@/utils/shutdown-manager";
 
+const CHECK_FILE_EXIST_INTERVAL = 30 * 1000;
+const CHECK_FILE_SIZE_INTERVAL = 60 * 1000;
+const CHECK_STOP_INTERVAL = 60 * 1000;
+
 export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents> {
   public roomId;
   private saveRecordFolder;
   private recCommand: ffmpeg.FfmpegCommand | null = null;
   private segmentFiles: string[] = [];
+
+  private recWatchDog: NodeJS.Timeout | null = null;
+  private recWatchDog_lastFileSize = 0;
+  private recStopTimeout: NodeJS.Timeout | null = null; // 检测软停止是否超时（ffmpeg 对q命令无响应的情况）
+  private retryRecTimeout: NodeJS.Timeout | null = null;
 
   public recStatus = Bilibili.RecorderStatus.NOT_RECORDING;
   public recProgress: FfmpegCommandProgress | null = null;
@@ -124,6 +133,9 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
   }
 
   private _stopRec() {
+    if (this.recStopTimeout) this._clearRecStopTimeout();
+    if (this.recCommand) this.recCommand = null;
+
     const onFinlish = (mergedFilePath: string) => {
       if (!process.env.DEBUG_NO_DELETE_RECORD_FILE) this._deleteRecordFileMeta(); // 清理 Meta
       this.emit("rec-end", mergedFilePath);
@@ -134,14 +146,13 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
       logger.error("[Live Recorder]", `房间 ${this.roomId} 合并分片失败: ${error}`);
     };
     const onFinally = () => {
-      this.recStatus = Bilibili.RecorderStatus.NOT_RECORDING;
+      this._changeRecStatus(Bilibili.RecorderStatus.NOT_RECORDING);
       this._cleanAfterStop();
     };
 
     logger.info("[Live Recorder]", `房间 ${this.roomId} 正在停止录制`);
 
     this.stat.endTime = new Date();
-    this.recStatus = Bilibili.RecorderStatus.STOPPING;
 
     this._mergeSegmentFiles().then(onFinlish).catch(onError).finally(onFinally);
   }
@@ -216,8 +227,36 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     }
   }
 
+  private _changeRecStatus(newStatus: Bilibili.RecorderStatus) {
+    this.recStatus = newStatus;
+    if (this.recWatchDog) this._clearRecWatchDog();
+  }
+
+  private _clearRecWatchDog() {
+    if (this.recWatchDog) {
+      clearTimeout(this.recWatchDog);
+      this.recWatchDog = null;
+      this.recWatchDog_lastFileSize = 0;
+    }
+  }
+
+  private _clearRetryRecTimeout() {
+    if (this.retryRecTimeout) {
+      clearTimeout(this.retryRecTimeout);
+      this.retryRecTimeout = null;
+    }
+  }
+
+  private _clearRecStopTimeout() {
+    if (this.recStopTimeout) {
+      clearTimeout(this.recStopTimeout);
+      this.recStopTimeout = null;
+    }
+  }
+
   private retryRec(timeout = 5000) {
-    setTimeout(() => this.rec(), timeout);
+    this.retryRecTimeout = setTimeout(() => this.rec(), timeout);
+    this._clearRecWatchDog();
   }
 
   public stop() {
@@ -226,15 +265,28 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
   }
 
   private _stop() {
-    if (!this.recCommand) return;
+    if (!this.recCommand || this.recStatus === Bilibili.RecorderStatus.STOPPING) return;
+    this._changeRecStatus(Bilibili.RecorderStatus.STOPPING);
     const stdin: NodeJS.WritableStream = (this.recCommand as any).ffmpegProc?.stdin;
     stdin.write("q");
+    this.recStopTimeout = setTimeout(() => {
+      this.recCommand?.removeAllListeners();
+      this.recCommand?.kill("SIGTERM");
+
+      logger.warn("[Live Recorder]", `房间 ${this.roomId} 正在强制停止录制`);
+      this._froceStop = false;
+      this._stopRec();
+    }, CHECK_STOP_INTERVAL);
   }
 
   public async rec() {
+    if (this.retryRecTimeout) this._clearRetryRecTimeout();
+    if (this.recWatchDog) this._clearRecWatchDog();
+
     // 判断是否强制停止录制
     if (this.recStatus === Bilibili.RecorderStatus.RECORDING && this._froceStop) {
       this._froceStop = false;
+      this._changeRecStatus(Bilibili.RecorderStatus.STOPPING);
       this._stopRec();
       return;
     }
@@ -249,13 +301,8 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     // 判断直播流是否可用
     try {
       const liveStreamUrls = await getLiveStreamUrl(this.roomId);
-      for (let i = 0; i < liveStreamUrls.length; i++) {
-        if (await isLiveStreamAvailable(liveStreamUrls[i])) {
-          liveStreamUrl = liveStreamUrls[i];
-          break;
-        }
-        if (!liveStreamUrl) throw new Error("无可用的直播流");
-      }
+      liveStreamUrl = await getAvailableLiveStream(liveStreamUrls);
+      if (!liveStreamUrl) throw new Error("无可用的直播流");
     } catch (error) {
       logger.warn("[Live Recorder]", `获取直播流失败: ${error}`);
       this.retryRec();
@@ -264,7 +311,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
     const outputFilePath = this._generateRecordFilePath();
 
-    this.recCommand = FfpmegUtils.rec(liveStreamUrl!, outputFilePath);
+    this.recCommand = FfpmegUtils.rec(liveStreamUrl, outputFilePath);
 
     this.recCommand
       .once("start", async () => {
@@ -273,7 +320,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
         this._updateRecordFileMeta();
 
-        this.recStatus = Bilibili.RecorderStatus.RECORDING;
+        this._changeRecStatus(Bilibili.RecorderStatus.RECORDING);
         this.emit("rec-start");
 
         logger.info("[Live Recorder]", `房间 ${this.roomId} 开始录制`);
@@ -282,10 +329,21 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
           if (!fs.existsSync(outputFilePath)) {
             // this.recCommand?.emit("error", new Error("录制文件长时间未生成"));
             logger.warn("[Live Recorder]", `房间 ${this.roomId} 录制文件长时间未生成`);
-            this.recCommand?.kill("SIGKILL");
+            this.recCommand?.kill("SIGTERM");
             this.retryRec();
           }
-        }, 60 * 1000);
+        }, CHECK_FILE_EXIST_INTERVAL);
+
+        this.recWatchDog = setInterval(() => {
+          const fileSize = fs.statSync(outputFilePath).size;
+
+          if (this.recWatchDog_lastFileSize === fileSize) {
+            // this.recCommand?.emit("error", new Error("录制文件长时间无变化"));
+            logger.warn("[Live Recorder]", `房间 ${this.roomId} 录制文件长时间无变化`);
+            this.recCommand?.kill("SIGTERM");
+            this.retryRec();
+          }
+        }, CHECK_FILE_SIZE_INTERVAL);
       })
       .once("error", (err) => {
         logger.error("[Live Recorder]", `房间 ${this.roomId} 录制失败: ${err}`);
@@ -312,7 +370,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
       }
       this.recCommand?.removeAllListeners();
     });
-    this.recCommand?.kill("SIGKILL");
+    this.recCommand?.kill("SIGTERM");
     this._cleanAfterStop();
   }
 }

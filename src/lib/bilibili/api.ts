@@ -231,6 +231,17 @@ export async function getUpUserInfo(mid: string | number, cookie?: string, useCa
   return resp.data.data;
 }
 
+export async function getAvailableLiveStream(urls: string[]) {
+  let availableUrl;
+  for (const url of urls) {
+    if (await isLiveStreamAvailable(url)) {
+      availableUrl = url;
+      break;
+    }
+  }
+  return availableUrl;
+}
+
 export async function isLiveStreamAvailable(url: string) {
   try {
     const response = await request.get(url, {
