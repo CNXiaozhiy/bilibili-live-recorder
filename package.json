@@ -1,6 +1,6 @@
 {
   "name": "bilibili-live-recorder",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "description": "A Node.js-based Bilibili live streaming recording system, developed with TypeScript.",
   "author": "CnXiaozhiy",
   "license": "MIT",

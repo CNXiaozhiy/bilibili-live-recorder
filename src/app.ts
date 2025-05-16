@@ -2,7 +2,7 @@
  * XzBLR System
  */
 
-process.env.APP_VERSION = "2.0.8";
+process.env.APP_VERSION = "2.0.9";
 process.env.META_FILE_VERSION = "1.0.0";
 
 import fes from "./bootstrap"; // frontEndServices

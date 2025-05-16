@@ -460,7 +460,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
                 continue;
               }
               const urls = await getLiveStreamUrl(id);
-              const tempFile = FsUtils.createTempFilePath(useHighQuality ? "png" : "jpg");
+              const tempFile = FsUtils.createTempFilePath(useHighQuality ? ".png" : ".jpg");
               if (useHighQuality) {
                 await FfpmegUtils.captureScreenshot(urls[0], tempFile);
               } else {
@@ -483,12 +483,23 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
         }
       );
 
+    const bannedUsers = new Set<string>();
+    const usageFrequency = new Map<string, number>();
+
+    setInterval(() => {
+      usageFrequency.forEach((_, k) => {
+        usageFrequency.set(k, 0);
+      });
+    }, 60 * 1000);
+
     bot.on("group_message", (e, reply) => {
       const gid = e.group_id;
       const qid = e.user_id;
       const raw = e.raw_message;
       const message = e.message;
       const symbol = `${gid}_${qid}`;
+
+      if (bannedUsers.has(symbol)) return;
 
       if (!gid || !qid || !raw || !message || !Array.isArray(message) || message.length === 0) {
         if (typeof raw === "string" || (Array.isArray(message) && message.length === 0)) {
@@ -503,7 +514,19 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       handler
         .handleMessage({ group_id: gid, user_id: qid, symbol }, raw)
         .then((resp) => {
-          resp && reply(resp).catch(this._messageSendError);
+          if (!resp) return;
+
+          usageFrequency.set(symbol, (usageFrequency.get(symbol) || 0) + 1);
+
+          reply(resp).catch(this._messageSendError);
+
+          if (usageFrequency.get(symbol)! > 5) {
+            bannedUsers.add(symbol);
+            setTimeout(() => {
+              bannedUsers.delete(symbol);
+            }, 30 * 1000);
+            reply("你发送指令太过于频繁，请稍后再试", { at: true });
+          }
         })
         .catch((e) => logger.error("[XzQBot Message Handler]", "消息处理失败", e));
     });

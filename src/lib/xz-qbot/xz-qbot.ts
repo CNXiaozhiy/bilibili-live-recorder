@@ -186,7 +186,6 @@ export default class XzQbot extends EventEmitter<XzQbotEvents> {
    * @param interval 检查间隔
    */
   private _setNextHeartbeatTimeout(interval: number) {
-    if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
     this.heartbeatTimeout = setTimeout(() => this._heartbeatTimeout(), interval);
   }
 
