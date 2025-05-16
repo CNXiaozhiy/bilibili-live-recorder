@@ -216,6 +216,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
     }
     type Commands =
       | "关于"
+      | "帮助"
       | "订阅直播间"
       | "取消订阅"
       | "录制状态"
@@ -243,6 +244,20 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           { type: "text", data: { text: `更新日志: ${changelog}\n` } },
           { type: "text", data: { text: `鸣谢: ${support}` } },
         ];
+      })
+      .register("帮助", {}, () => {
+        return (
+          "BLR XzQBot Adapter 帮助中心\n\n" +
+          "1. 订阅直播间\n参数（直播间ID）。若本群有订阅直播间可以在询问是否快捷订阅后发送'是'直接订阅，也可以另外发送直播间ID来订阅\n\n" +
+          "2. 取消订阅\n参数（直播间ID）。需要发送直播间ID\n\n" +
+          "3. 直播间\n无需参数。查看已经订阅过的所有直播间的详细信息\n\n" +
+          "4. 录制状态\n无需参数。查看已经订阅过的所有直播间的录制状态\n\n" +
+          "5. 任务进度\n参数（任务ID）。\n\n" +
+          "6. 结束录制\n参数（直播间ID）。需要发送直播间ID\n\n" +
+          "7. 直播间图片\n无必选参数，可选参数（是否使用高清图片）。查看已经订阅过的所有直播间的直播间截图\n\n" +
+          "注：必选参数是指需要单独提供的信息，比如取消订阅时你必须告诉机器人直播间ID，否则机器人无法确认你到底要取消订阅谁。其他指令类似。可选参数则是可以不提供，采用默认值。\n" +
+          "在有参数的情况你也可以使用这种格式：“指令名 参数1 参数2 参数n” 来快速操作，这样机器人就不会单独询问参数值。"
+        );
       })
       .register(
         "订阅直播间",
