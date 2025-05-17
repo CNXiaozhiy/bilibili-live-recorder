@@ -9,7 +9,12 @@ const ready = new Promise<void>(async (resolve) => {
   await bilibiliStore.ready;
   if ((await bilibiliStore.state.db.getBiliAccounts()).length === 0) {
     logger.warn("[Bilibili Account]", "未登录任何账号 ⚠️");
-    await BilibiliUtils.login();
+    try {
+      await BilibiliUtils.addAccountSync();
+    } catch (e) {
+      logger.error("[Bilibili Account]", (e as Error).message);
+      process.exit(0);
+    }
   }
 
   let defaultAccount = await bilibiliStore.state.db.getDefaultBiliAccount();

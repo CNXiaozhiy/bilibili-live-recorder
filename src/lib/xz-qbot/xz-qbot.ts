@@ -17,16 +17,8 @@ const NETWORK_LATENCY_TOLERANCE = 5 * 1000; // 网络延迟容忍度
 
 export interface XzQbotEvents {
   event: [data: { e: OneBot.Events }];
-  message: [
-    e: OneBot.MessageEvent,
-    reply: ReplyFunction<
-      OneBot.ActionOkResponse<"send_group_msg"> | OneBot.ActionOkResponse<"send_private_msg">
-    >
-  ];
-  group_message: [
-    e: OneBot.GroupMessageEvent | OneBot.GroupMessageSentEvent,
-    reply: ReplyFunction<OneBot.ActionOkResponse<"send_group_msg">>
-  ];
+  message: [e: OneBot.MessageEvent, reply: ReplyFunction<OneBot.ActionOkResponse<"send_group_msg"> | OneBot.ActionOkResponse<"send_private_msg">>];
+  group_message: [e: OneBot.GroupMessageEvent | OneBot.GroupMessageSentEvent, reply: ReplyFunction<OneBot.ActionOkResponse<"send_group_msg">>];
   private_message: [
     e: OneBot.PrivateMessageEvent | OneBot.PrivateMessageSentEvent,
     reply: ReplyFunction<OneBot.ActionOkResponse<"send_private_msg">>
@@ -105,11 +97,7 @@ export default class XzQbot extends EventEmitter<XzQbotEvents> {
   }
 
   private _messageHandler(e: OneBot.MessageEvent | OneBot.MessageSentEvent) {
-    const formatMessage = (
-      message: OneBot.Messages,
-      at?: boolean,
-      reference?: boolean
-    ): OneBot.SegmentMessages => {
+    const formatMessage = (message: OneBot.Messages, at?: boolean, reference?: boolean): OneBot.SegmentMessages => {
       let segmentMessages: OneBot.SegmentMessages;
       if (typeof message === "string") {
         segmentMessages = [this._textToSegmentMessage(message)];
@@ -131,10 +119,7 @@ export default class XzQbot extends EventEmitter<XzQbotEvents> {
         });
       this.emit("group_message", e, reply);
     } else if (e.message_type === "private") {
-      const reply: ReplyFunction<OneBot.ActionOkResponse<"send_private_msg">> = (
-        message,
-        options
-      ) =>
+      const reply: ReplyFunction<OneBot.ActionOkResponse<"send_private_msg">> = (message, options) =>
         this._action({
           action: "send_private_msg",
           params: {
@@ -201,9 +186,7 @@ export default class XzQbot extends EventEmitter<XzQbotEvents> {
     this.ws.send(JSON.stringify(data));
   }
 
-  private _send<A extends OneBot.Actions>(
-    params: OneBot.ActionPayload<A>
-  ): Promise<OneBot.ActionOkResponse<A>> {
+  private _send<A extends OneBot.Actions>(params: OneBot.ActionPayload<A>): Promise<OneBot.ActionOkResponse<A>> {
     if (!this.connect()) return Promise.reject("Websocket not connected");
 
     const echo = uuid();
@@ -259,5 +242,9 @@ export default class XzQbot extends EventEmitter<XzQbotEvents> {
 
   getMsg(message_id: OneBot.MessageID) {
     return this._action({ action: "get_msg", params: { message_id } });
+  }
+
+  getImage(file: string) {
+    return this._action({ action: "get_image", params: { file } });
   }
 }

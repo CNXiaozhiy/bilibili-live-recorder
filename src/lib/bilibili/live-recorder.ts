@@ -229,10 +229,14 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
       this._stopRec();
     }, CHECK_STOP_INTERVAL);
 
+    logger.debug("[Live Recorder]", `stdin <- 'q' 已弃用`);
     // const stdin: NodeJS.WritableStream = (this.recCommand as any).ffmpegProc?.stdin;
+    // if (stdin) stdin.write('q');
     this.recCommand?.removeAllListeners();
     this.recCommand?.on("error", () => {});
     this.recCommand?.kill("SIGTERM");
+    this._froceStop = false;
+    this._stopRec();
   }
 
   public async rec() {

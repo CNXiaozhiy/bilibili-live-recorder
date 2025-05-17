@@ -90,9 +90,7 @@ class Main {
           throw new Error("BOT_ADMINS 和 BOT_ADMIN_PERMISSIONS 长度不匹配");
         }
 
-        const adminStmt = this.db.prepare(
-          "INSERT OR REPLACE INTO bot_admin (user_id, permission) VALUES (?, ?)"
-        );
+        const adminStmt = this.db.prepare("INSERT OR REPLACE INTO bot_admin (user_id, permission) VALUES (?, ?)");
         admins.forEach((userId, index) => adminStmt.run(userId.trim(), permissions[index].trim()));
         adminStmt.finalize();
       });
@@ -105,39 +103,41 @@ class Main {
 
   public getCustomRoomSettings() {
     return new Promise<Database.Main.CustomRoomSettingsTableRow[]>((resolve, reject) => {
-      this.db.all<Database.Main.CustomRoomSettingsTableRow>(
-        "SELECT * FROM custom_room_settings",
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows);
-          }
+      this.db.all<Database.Main.CustomRoomSettingsTableRow>("SELECT * FROM custom_room_settings", (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
         }
-      );
+      });
     });
   }
 
   public getCustomRoomSettingByRoomId(roomId: number) {
     return new Promise<Database.Main.CustomRoomSettingsTableRow | null>((resolve, reject) => {
-      this.db.get<Database.Main.CustomRoomSettingsTableRow>(
-        "SELECT * FROM custom_room_settings WHERE room_id = ?",
-        [roomId],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row || null);
-          }
+      this.db.get<Database.Main.CustomRoomSettingsTableRow>("SELECT * FROM custom_room_settings WHERE room_id = ?", [roomId], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row || null);
         }
-      );
+      });
     });
   }
 
-  public setCustomRoomSettings(
-    roomId: number,
-    settings: Omit<Database.Main.CustomRoomSettingsTableRow, "room_id">
-  ) {
+  public getCustomRoomSettingByGroupId(groupId: number) {
+    return new Promise<Database.Main.CustomRoomSettingsTableRow | null>((resolve, reject) => {
+      this.db.get<Database.Main.CustomRoomSettingsTableRow>("SELECT * FROM custom_room_settings WHERE group_id = ?", [groupId], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row || null);
+        }
+      });
+    });
+  }
+
+  public setCustomRoomSettings(roomId: number, settings: Omit<Database.Main.CustomRoomSettingsTableRow, "room_id">) {
     return new Promise<void>((resolve, reject) => {
       this.db.run(
         `INSERT OR REPLACE INTO custom_room_settings (room_id, group_id, notice_message_1, notice_message_2, notice_message_3, upload_account_uid, upload_cover, upload_title, upload_desc, upload_tid)
@@ -167,47 +167,37 @@ class Main {
 
   public getBiliAccounts() {
     return new Promise<Database.Main.BiliAccountsTableRow[]>((resolve, reject) => {
-      this.db.all<Database.Main.BiliAccountsTableRow>(
-        "SELECT * FROM bili_accounts",
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows);
-          }
+      this.db.all<Database.Main.BiliAccountsTableRow>("SELECT * FROM bili_accounts", (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
         }
-      );
+      });
     });
   }
 
   public getBiliAccountByUid(uid: number) {
     return new Promise<Database.Main.BiliAccountsTableRow | null>((resolve, reject) => {
-      this.db.get<Database.Main.BiliAccountsTableRow>(
-        "SELECT * FROM bili_accounts WHERE uid = ?",
-        [uid],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row || null);
-          }
+      this.db.get<Database.Main.BiliAccountsTableRow>("SELECT * FROM bili_accounts WHERE uid = ?", [uid], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row || null);
         }
-      );
+      });
     });
   }
 
   public getDefaultBiliAccount() {
     return new Promise<Database.Main.BiliAccountsTableRow | null>((resolve, reject) => {
-      this.db.get<Database.Main.BiliAccountsTableRow>(
-        "SELECT * FROM bili_accounts WHERE is_default = 1",
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row || null);
-          }
+      this.db.get<Database.Main.BiliAccountsTableRow>("SELECT * FROM bili_accounts WHERE is_default = 1", (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row || null);
         }
-      );
+      });
     });
   }
 
@@ -237,12 +227,7 @@ class Main {
     });
   }
 
-  public addBiliAccount(
-    uid: number,
-    biliCookie: string,
-    biliRefreshToken: string,
-    is_default: number = 0
-  ) {
+  public addBiliAccount(uid: number, biliCookie: string, biliRefreshToken: string, is_default: number = 0) {
     return new Promise<void>((resolve, reject) => {
       this.db.run(
         "INSERT INTO bili_accounts (uid, is_default, bili_cookie, bili_refresh_token) VALUES (?, ?, ?, ?)",
@@ -260,17 +245,13 @@ class Main {
 
   public updateBiliAccount(uid: number, biliCookie: string, biliRefreshToken: string) {
     return new Promise<void>((resolve, reject) => {
-      this.db.run(
-        "UPDATE bili_accounts SET bili_cookie = ?, bili_refresh_token = ? WHERE uid = ?",
-        [biliCookie, biliRefreshToken, uid],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
+      this.db.run("UPDATE bili_accounts SET bili_cookie = ?, bili_refresh_token = ? WHERE uid = ?", [biliCookie, biliRefreshToken, uid], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
         }
-      );
+      });
     });
   }
 
@@ -288,35 +269,27 @@ class Main {
 
   public getSetting(name: string) {
     return new Promise<string | null>((resolve, reject) => {
-      this.db.get<Database.Main.SettingsTableRow>(
-        `SELECT * FROM settings WHERE name = ?`,
-        [name],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else if (row) {
-            resolve(row.value);
-          } else {
-            resolve(null);
-          }
+      this.db.get<Database.Main.SettingsTableRow>(`SELECT * FROM settings WHERE name = ?`, [name], (err, row) => {
+        if (err) {
+          reject(err);
+        } else if (row) {
+          resolve(row.value);
+        } else {
+          resolve(null);
         }
-      );
+      });
     });
   }
 
   public setSetting(name: string, value: string) {
     return new Promise<void>((resolve, reject) => {
-      this.db.run(
-        `INSERT OR REPLACE INTO settings (name, value) VALUES (?, ?)`,
-        [name, value],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
+      this.db.run(`INSERT OR REPLACE INTO settings (name, value) VALUES (?, ?)`, [name, value], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
         }
-      );
+      });
     });
   }
 
@@ -334,51 +307,39 @@ class Main {
 
   public setAdmin(userId: number, permission: number) {
     return new Promise<void>((resolve, reject) => {
-      this.db.run(
-        `INSERT OR REPLACE INTO bot_admin (user_id, permission) VALUES (?, ?)`,
-        [userId, permission],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
+      this.db.run(`INSERT OR REPLACE INTO bot_admin (user_id, permission) VALUES (?, ?)`, [userId, permission], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
         }
-      );
+      });
     });
   }
 
   public isAdmin(userId: number, permission?: number) {
     return new Promise<boolean>((resolve, reject) => {
-      this.db.get<Database.Main.BotAdminTableRow>(
-        `SELECT * FROM bot_admin WHERE user_id = ?`,
-        [userId],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else if (row) {
-            resolve(row.permission > (permission || 0));
-          } else {
-            resolve(false);
-          }
+      this.db.get<Database.Main.BotAdminTableRow>(`SELECT * FROM bot_admin WHERE user_id = ?`, [userId], (err, row) => {
+        if (err) {
+          reject(err);
+        } else if (row) {
+          resolve(row.permission > (permission || 0));
+        } else {
+          resolve(false);
         }
-      );
+      });
     });
   }
 
   public setQuickSubscribe(group_id: number, room_id: number) {
     return new Promise<void>((resolve, reject) => {
-      this.db.run(
-        `INSERT OR REPLACE INTO quick_subscribe (group_id, room_id) VALUES (?, ?)`,
-        [group_id, room_id],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
+      this.db.run(`INSERT OR REPLACE INTO quick_subscribe (group_id, room_id) VALUES (?, ?)`, [group_id, room_id], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
         }
-      );
+      });
     });
   }
 
@@ -414,17 +375,13 @@ class Main {
 
   public getSubscribeTable(roomId: number) {
     return new Promise<Database.Main.SubscribeTableRow[]>((resolve, reject) => {
-      this.db.all<Database.Main.SubscribeTableRow>(
-        `SELECT * FROM subscribe WHERE room_id = ?`,
-        [roomId],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows);
-          }
+      this.db.all<Database.Main.SubscribeTableRow>(`SELECT * FROM subscribe WHERE room_id = ?`, [roomId], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
         }
-      );
+      });
     });
   }
 
@@ -450,21 +407,19 @@ class Main {
    * @returns
    */
   public getSubscriberWithGroup(roomId: number) {
-    return new Promise<Pick<Database.Main.SubscribeTableRow, "user_id" | "group_id">[]>(
-      (resolve, reject) => {
-        this.db.all<Pick<Database.Main.SubscribeTableRow, "user_id" | "group_id">>(
-          `SELECT DISTINCT user_id, group_id FROM subscribe WHERE room_id = ?`,
-          [roomId],
-          (err, rows) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(rows);
-            }
+    return new Promise<Pick<Database.Main.SubscribeTableRow, "user_id" | "group_id">[]>((resolve, reject) => {
+      this.db.all<Pick<Database.Main.SubscribeTableRow, "user_id" | "group_id">>(
+        `SELECT DISTINCT user_id, group_id FROM subscribe WHERE room_id = ?`,
+        [roomId],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows);
           }
-        );
-      }
-    );
+        }
+      );
+    });
   }
 
   /**
@@ -494,21 +449,19 @@ class Main {
    * @returns {user_id: number, room_id: number}[]
    */
   public getSubscriberByGroup(groupId: QQNumber) {
-    return new Promise<Pick<Database.Main.SubscribeTableRow, "user_id" | "room_id">[]>(
-      (resolve, reject) => {
-        this.db.all<Pick<Database.Main.SubscribeTableRow, "user_id" | "room_id">>(
-          `SELECT user_id, room_id FROM subscribe WHERE group_id = ?`,
-          [groupId],
-          (err, rows) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(rows);
-            }
+    return new Promise<Pick<Database.Main.SubscribeTableRow, "user_id" | "room_id">[]>((resolve, reject) => {
+      this.db.all<Pick<Database.Main.SubscribeTableRow, "user_id" | "room_id">>(
+        `SELECT user_id, room_id FROM subscribe WHERE group_id = ?`,
+        [groupId],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows);
           }
-        );
-      }
-    );
+        }
+      );
+    });
   }
 
   /**
@@ -517,16 +470,13 @@ class Main {
    */
   public getSubscribedRooms() {
     return new Promise<number[]>((resolve, reject) => {
-      this.db.all<Pick<Database.Main.SubscribeTableRow, "room_id">>(
-        `SELECT DISTINCT room_id FROM subscribe`,
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows.map((row) => row.room_id));
-          }
+      this.db.all<Pick<Database.Main.SubscribeTableRow, "room_id">>(`SELECT DISTINCT room_id FROM subscribe`, (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows.map((row) => row.room_id));
         }
-      );
+      });
     });
   }
 
@@ -574,33 +524,25 @@ class Main {
 
   public insertSubscribe(roomId: number, groupId: number, userId: number) {
     return new Promise<void>((resolve, reject) => {
-      this.db.run(
-        `INSERT OR IGNORE INTO subscribe (room_id, group_id, user_id) VALUES (?, ?, ?)`,
-        [roomId, groupId, userId],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
+      this.db.run(`INSERT OR IGNORE INTO subscribe (room_id, group_id, user_id) VALUES (?, ?, ?)`, [roomId, groupId, userId], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
         }
-      );
+      });
     });
   }
 
   public deleteSubscribe(roomId: number, groupId: number, userId: number) {
     return new Promise<void>((resolve, reject) => {
-      this.db.run(
-        `DELETE FROM subscribe WHERE room_id = ? AND group_id = ? AND user_id = ?`,
-        [roomId, groupId, userId],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
+      this.db.run(`DELETE FROM subscribe WHERE room_id = ? AND group_id = ? AND user_id = ?`, [roomId, groupId, userId], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
         }
-      );
+      });
     });
   }
 }

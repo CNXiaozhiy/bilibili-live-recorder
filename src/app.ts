@@ -2,7 +2,7 @@
  * XzBLR System
  */
 
-process.env.APP_VERSION = "2.1.0";
+process.env.APP_VERSION = "2.2.0";
 process.env.META_FILE_VERSION = "1.0.1";
 
 import fes from "./bootstrap"; // frontEndServices
@@ -16,9 +16,7 @@ import logger from "./logger";
 const app = async () => {
   const acm = new BilibiliLiveAcManager({ saveRecordFolder: process.env.SAVE_RECORD_FOLDER! });
   const rooms = await bilibiliStore.state.db.getSubscribesTable();
-  rooms.forEach(({ room_id, group_id, user_id }) =>
-    acm.addSubscriber(room_id, `${group_id}_${user_id}`)
-  );
+  rooms.forEach(({ room_id, group_id, user_id }) => acm.addSubscriber(room_id, `${group_id}_${user_id}`));
 
   adapterStore.adapterInstance.install(acm);
 
