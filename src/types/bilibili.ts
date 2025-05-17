@@ -1,4 +1,4 @@
-import BilibiliLiveAutoRecorder from "@/lib/bilibili/live-auto-recoder";
+import BilibiliLiveAutoController from "@/lib/bilibili/live-auto-controller";
 import BilibiliLiveRecorder from "@/lib/bilibili/live-recorder";
 
 export namespace Bilibili {
@@ -283,7 +283,6 @@ export interface VideoInfo {
 }
 
 export interface LiveRecoderStat {
-  liveRoomInfo?: LiveRoomInfo;
   startTime?: Date;
   endTime?: Date;
 }
@@ -309,11 +308,11 @@ export type LiveMonitorOptions = {
 
 export type BilibiliUploaderOptions = {
   file_path: string;
-  cover_base64: string;
 
   video: {
     title: string;
     description: string;
+    cover: string;
     tid?: number;
     tag?: string;
   };
@@ -331,10 +330,11 @@ export type LiveAutoRecorderManagerOptions = Omit<LiveAutoRecorderOptions, "room
 // EVENTS
 
 export interface LiveRecoderEvents {
-  "rec-start": [];
-  "rec-stoping": [];
-  "rec-end": [string];
+  "rec-start": [string]; // hash
+  "rec-stoping": [string]; // hash
+  "rec-end": [string, string]; // hash, mergedFilePath
   "rec-progress": [FfmpegCommandProgress];
+  "segment-change": [string, string[]];
   "rec-error": [unknown]; // fatal error
   "rec-merge-error": [unknown];
 }
@@ -347,15 +347,15 @@ export interface LiveMonitorEvents {
   "monitor-error": [unknown];
 }
 
-export interface LiveAutoRecorderManagerEvents {
-  "hot-reload-add": [BilibiliLiveAutoRecorder];
-  "hot-reload-remove": [BilibiliLiveAutoRecorder];
-}
-
-export interface AutoUploaderEvents {
+export interface LiveAutoControllerEvents {
   "upload-start": [number];
   "upload-success": [{ aid: number; bvid: string }];
   "upload-error": [unknown];
+}
+
+export interface LiveAutoControllerManagerEvents {
+  "hot-reload-add": [BilibiliLiveAutoController];
+  "hot-reload-remove": [BilibiliLiveAutoController];
 }
 
 // LiveRecorder.File
@@ -370,11 +370,8 @@ export interface RecordFileMeta {
   live_start_time: number;
   hash: string; // room_id + live_start_time 唯一的决定了一个直播间
 
-  recorder_stat: {
-    start_time: number;
-    end_time: number | null;
-    live_room_info: LiveRoomInfo;
-  };
+  start_time: number;
+  end_time: number | null;
 
   live_room_info: LiveRoomInfo;
 }
@@ -383,7 +380,7 @@ export interface RecordFileMeta {
 
 // *.upload.meta.json
 export interface UploadFileMeta {
-  type: "auto-uploader";
+  type: "uploader";
   version: string;
   merged_record_file: string;
 
@@ -391,8 +388,8 @@ export interface UploadFileMeta {
   live_start_time: number;
   hash: string;
 
-  liveRecoderStat: Required<LiveRecoderStat>;
-  uploaderOptions: BilibiliUploaderOptions;
+  live_recoder_stat: Required<LiveRecoderStat>;
+  uploader_options: BilibiliUploaderOptions;
 }
 
 export type FileMeta = RecordFileMeta | UploadFileMeta;

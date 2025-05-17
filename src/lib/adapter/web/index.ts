@@ -1,7 +1,7 @@
 // web-adapter.ts
 import express from "express";
 import { ISubAdapter } from "@/lib/adapter";
-import BilibiliLiveArManager from "@/lib/bilibili/live-ar-manager";
+import BilibiliLiveAcManager from "@/lib/bilibili/live-ac-manager";
 import logger from "@/logger";
 import path from "path";
 import apiRouter from "./router";
@@ -15,7 +15,7 @@ export default class WebAdapter implements ISubAdapter {
   private PORT: number;
 
   private app: express.Application | null = null;
-  private arm: BilibiliLiveArManager | null = null;
+  private acm: BilibiliLiveAcManager | null = null;
 
   constructor(port: number) {
     this.PORT = port;
@@ -25,18 +25,18 @@ export default class WebAdapter implements ISubAdapter {
     logger.info("[Web Adapter]", `init`);
   }
 
-  install(arm: BilibiliLiveArManager): void {
-    this.arm = arm;
+  install(acm: BilibiliLiveAcManager): void {
+    this.acm = acm;
     this.createWebServer();
   }
 
   createWebServer() {
-    if (!this.arm) throw new Error("[Web Adapter] arm is null");
+    if (!this.acm) throw new Error("[Web Adapter] acm is null");
 
     this.app = express();
 
     this.app.use(express.static(path.join(process.cwd(), "public")));
-    this.app.use("/api", apiRouter(this.arm));
+    this.app.use("/api", apiRouter(this.acm));
 
     this.app.listen(this.PORT, () => {
       logger.info("[Web Adapter]", `Web Adapter 服务启动成功✔️`);

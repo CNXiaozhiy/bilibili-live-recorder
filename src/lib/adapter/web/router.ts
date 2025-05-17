@@ -1,4 +1,4 @@
-import BilibiliLiveArManager from "@/lib/bilibili/live-ar-manager";
+import BilibiliLiveAcManager from "@/lib/bilibili/live-ac-manager";
 import express, { Router } from "express";
 import crypto from "crypto";
 
@@ -21,7 +21,7 @@ enum Errors {
 
 class AuthController {
   router: Router;
-  constructor(private arm: BilibiliLiveArManager) {
+  constructor(private arm: BilibiliLiveAcManager) {
     this.router = Router();
   }
 
@@ -81,7 +81,7 @@ class AuthController {
 
 class LiveRoomsController {
   router: Router;
-  constructor(private arm: BilibiliLiveArManager) {
+  constructor(private arm: BilibiliLiveAcManager) {
     this.router = Router();
   }
 
@@ -93,23 +93,23 @@ class LiveRoomsController {
     res.json({
       code: 0,
       msg: "ok",
-      data: this.arm.getArs().map((arInfo) => {
+      data: this.arm.getAcs().map((acInfo) => {
         return {
-          roomId: arInfo.ar.roomId,
+          roomId: acInfo.ac.roomId,
           recorder: {
-            recStatus: arInfo.ar.liveRecorder.recStatus,
-            segIndex: arInfo.ar.liveRecorder.segIndex,
-            stat: arInfo.ar.liveRecorder.stat,
+            recStatus: acInfo.ac.liveRecorder.recStatus,
+            segIndex: acInfo.ac.liveRecorder.segIndex,
+            stat: acInfo.ac.liveRecorder.stat,
           },
-          roomInfo: arInfo.ar.liveMonitor.roomInfo!,
-          subscribers: arInfo.subscribers!,
+          roomInfo: acInfo.ac.liveMonitor.roomInfo!,
+          subscribers: acInfo.subscribers!,
         };
       }),
     });
   }
 }
 
-const getRouter = (arm: BilibiliLiveArManager) => {
+const getRouter = (arm: BilibiliLiveAcManager) => {
   router.use("/auth", new AuthController(arm).router);
   router.use("/live-rooms", new LiveRoomsController(arm).router);
 

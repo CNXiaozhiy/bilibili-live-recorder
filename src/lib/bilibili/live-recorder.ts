@@ -1,8 +1,6 @@
 import fs from "fs";
-import path from "path";
 import crypto from "crypto";
 import ffmpeg from "fluent-ffmpeg";
-import moment from "moment";
 import EventEmitter from "events";
 import { getLiveRoomInfo, getLiveStreamUrl, getAvailableLiveStream } from "./api";
 import {
@@ -19,6 +17,7 @@ import FileNameUtils from "@/utils/file-name";
 import FfpmegUtils from "@/utils/ffmpeg";
 import FileTreeParse from "./file-tree-parse";
 import { shutdownManager } from "@/utils/shutdown-manager";
+import { generateRecordMetaFilePath } from "@/utils/meta-file";
 
 const CHECK_FILE_EXIST_INTERVAL = 30 * 1000;
 const CHECK_FILE_SIZE_INTERVAL = 60 * 1000;
@@ -55,18 +54,11 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     shutdownManager.registerCleanupTask(() => {
       return new Promise<void>((resolve) => {
         if (!this.recCommand) return resolve();
-        this.recCommand.removeAllListeners();
-        this.recCommand.addListener("end", () => {
-          logger.info("[Live Recorder Cleanup]", "Command End -> " + this.recHash);
-          resolve();
-        });
-        this._stop();
+        this.recCommand?.removeAllListeners();
+        this.recCommand?.on("error", () => resolve());
+        this.recCommand?.kill("SIGTERM");
       });
     });
-  }
-
-  private getRecordFileMetaFilePath() {
-    return path.join(this.saveRecordFolder, `${this.recHash}.meta.json`);
   }
 
   private _generateRecordFilePath(): string {
@@ -74,12 +66,12 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
   }
 
   private _recoverRecorderState() {
-    const metaFilePath = this.getRecordFileMetaFilePath();
+    const metaFilePath = generateRecordMetaFilePath(this.recHash!, this.saveRecordFolder);
     if (!fs.existsSync(metaFilePath)) return;
     const metaData = FileTreeParse.verify(metaFilePath, "live-recorder") as RecordFileMeta | null;
     if (!metaData) return;
 
-    this.stat.startTime = new Date(metaData.recorder_stat.start_time);
+    this.stat.startTime = new Date(metaData.start_time);
     this.segmentFiles = metaData.record_files.filter((file) => fs.existsSync(file));
 
     logger.debug("[Live Recorder Recovery]", `恢复部分录制信息成功：`, {
@@ -90,44 +82,6 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     });
   }
 
-  private _createRecordFileMetaFile() {
-    if (!this.stat.liveRoomInfo || !this.recHash) throw new Error("缺少必要的信息");
-
-    const metaFilePath = this.getRecordFileMetaFilePath();
-
-    const metaData: RecordFileMeta = {
-      type: "live-recorder",
-      version: process.env.META_FILE_VERSION!,
-      record_files: this.segmentFiles,
-      room_id: this.roomId,
-      live_start_time: new Date(this.stat.liveRoomInfo.live_time).getTime(),
-      hash: this.recHash,
-
-      recorder_stat: {
-        start_time: this.stat.startTime?.getTime() || Date.now(),
-        end_time: null,
-        live_room_info: this.stat.liveRoomInfo,
-      },
-      live_room_info: this.stat.liveRoomInfo,
-    };
-
-    fs.writeFileSync(metaFilePath, JSON.stringify(metaData, null, 2));
-
-    return metaFilePath;
-  }
-
-  private _updateRecordFileMeta() {
-    const metaFilePath = this.getRecordFileMetaFilePath();
-    if (!fs.existsSync(metaFilePath)) return;
-    const metaData = FileTreeParse.verify(metaFilePath, "live-recorder") as RecordFileMeta | null;
-    if (!metaData) return;
-
-    metaData.record_files = this.segmentFiles;
-    metaData.recorder_stat.end_time = this.stat.endTime?.getTime() || null;
-
-    fs.writeFileSync(metaFilePath, JSON.stringify(metaData, null, 2));
-  }
-
   private _generateMergedFilePath(): string {
     return FileNameUtils.generateMergedFilePath(this.saveRecordFolder, this.roomId);
   }
@@ -135,10 +89,10 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
   private _stopRec() {
     if (this.recStopTimeout) this._clearRecStopTimeout();
     if (this.recCommand) this.recCommand = null;
+    this.emit("rec-stoping", this.recHash!);
 
     const onFinlish = (mergedFilePath: string) => {
-      if (!process.env.DEBUG_NO_DELETE_RECORD_FILE) this._deleteRecordFileMeta(); // 清理 Meta
-      this.emit("rec-end", mergedFilePath);
+      this.emit("rec-end", this.recHash!, mergedFilePath);
       logger.info("[Live Recorder]", `房间 ${this.roomId} 停止录制成功`);
     };
     const onError = (error: unknown) => {
@@ -150,7 +104,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
       this._cleanAfterStop();
     };
 
-    logger.info("[Live Recorder]", `房间 ${this.roomId} 正在停止录制`);
+    logger.info("[Live Recorder]", `房间 ${this.roomId} 正在停止录制（合并分片）`);
 
     this.stat.endTime = new Date();
 
@@ -168,12 +122,6 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     if (fs.existsSync(file)) fs.unlinkSync(file);
   }
 
-  private _deleteRecordFileMeta() {
-    const metaFilePath = this.getRecordFileMetaFilePath();
-
-    if (fs.existsSync(metaFilePath)) fs.unlinkSync(metaFilePath);
-  }
-
   private _mergeSegmentFiles() {
     this.cleanNullSegmentFiles();
     if (this.segmentFiles.length === 1) {
@@ -189,18 +137,19 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
   }
 
   private async _firstRec() {
-    this.stat.liveRoomInfo = await getLiveRoomInfo(this.roomId);
+    const liveRoomInfo = await getLiveRoomInfo(this.roomId);
+
     this.stat.startTime = new Date();
     this.stat.endTime = undefined;
     this.recProgress = null;
 
-    const _liveStartTime = new Date(this.stat.liveRoomInfo.live_time).getTime();
+    const _liveStartTime = new Date(liveRoomInfo.live_time).getTime();
     this.recHash = crypto
       .createHash("md5")
       .update(`${this.roomId}_${_liveStartTime}`)
       .digest("hex");
 
-    const metaFilePath = this.getRecordFileMetaFilePath();
+    const metaFilePath = generateRecordMetaFilePath(this.recHash, this.saveRecordFolder);
 
     if (fs.existsSync(metaFilePath)) {
       logger.info(
@@ -208,8 +157,6 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
         `房间 ${this.roomId} 已经有录制信息，可能出现了意外情况，正在恢复`
       );
       this._recoverRecorderState();
-    } else {
-      this._createRecordFileMetaFile();
     }
   }
 
@@ -266,17 +213,26 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
   private _stop() {
     if (!this.recCommand || this.recStatus === Bilibili.RecorderStatus.STOPPING) return;
+    if (this.retryRecTimeout) this._clearRetryRecTimeout();
+    if (this.recWatchDog) this._clearRecWatchDog();
     this._changeRecStatus(Bilibili.RecorderStatus.STOPPING);
-    const stdin: NodeJS.WritableStream = (this.recCommand as any).ffmpegProc?.stdin;
-    stdin.write("q");
+
+    logger.debug("[Live Recorder]", `房间 ${this.roomId} _stop()`);
+
     this.recStopTimeout = setTimeout(() => {
       this.recCommand?.removeAllListeners();
-      this.recCommand?.kill("SIGTERM");
+      this.recCommand?.on("error", () => {});
+      this.recCommand?.kill("SIGKILL");
 
       logger.warn("[Live Recorder]", `房间 ${this.roomId} 正在强制停止录制`);
       this._froceStop = false;
       this._stopRec();
     }, CHECK_STOP_INTERVAL);
+
+    // const stdin: NodeJS.WritableStream = (this.recCommand as any).ffmpegProc?.stdin;
+    this.recCommand?.removeAllListeners();
+    this.recCommand?.on("error", () => {});
+    this.recCommand?.kill("SIGTERM");
   }
 
   public async rec() {
@@ -285,6 +241,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
     // 判断是否强制停止录制
     if (this.recStatus === Bilibili.RecorderStatus.RECORDING && this._froceStop) {
+      logger.debug("[Live Recorder]", `房间 ${this.roomId} 正在停止录制`);
       this._froceStop = false;
       this._changeRecStatus(Bilibili.RecorderStatus.STOPPING);
       this._stopRec();
@@ -293,6 +250,10 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
     // 判断直播间是否开播
     if ((await getLiveRoomInfo(this.roomId)).live_status !== Bilibili.LiveRoomStatus.LIVE) {
+      logger.debug(
+        "[Live Recorder]",
+        `Retry Rec Check Result: 房间 ${this.roomId} 直播间未开播，结束录制`
+      );
       if (this.recStatus === Bilibili.RecorderStatus.RECORDING) this._stopRec();
       return;
     }
@@ -318,10 +279,10 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
         if (this.segmentFiles.length === 0) await this._firstRec();
         this.segmentFiles.push(outputFilePath);
 
-        this._updateRecordFileMeta();
-
         this._changeRecStatus(Bilibili.RecorderStatus.RECORDING);
-        this.emit("rec-start");
+        this.emit("rec-start", this.recHash!);
+
+        this.emit("segment-change", this.recHash!, this.segmentFiles);
 
         logger.info("[Live Recorder]", `房间 ${this.roomId} 开始录制`);
 
@@ -365,7 +326,6 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     this.recCommand?.removeAllListeners();
     this.recCommand?.on("error", () => {
       if (cleanFile) {
-        this._deleteRecordFileMeta();
         this.segmentFiles.forEach(this._deleteRecordFile);
       }
       this.recCommand?.removeAllListeners();

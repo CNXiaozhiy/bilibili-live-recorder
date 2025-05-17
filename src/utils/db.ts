@@ -28,6 +28,28 @@ class Main {
       this.db.serialize(() => {
         // Create tables
         this.db.exec(`
+          CREATE TABLE IF NOT EXISTS custom_room_settings (
+            room_id INTEGER PRIMARY KEY NOT NULL,
+            group_id INTEGER,
+            notice_message_1 TEXT,
+            notice_message_2 TEXT,
+            notice_message_3 TEXT,
+            upload_account_uid INTEGER,
+            upload_cover TEXT,
+            upload_title TEXT,
+            upload_desc TEXT,
+            upload_tid INTEGER,
+            upload_tag TEXT,
+            CONSTRAINT "account_uid" FOREIGN KEY ("upload_account_uid") REFERENCES "bili_accounts" ("uid") ON DELETE RESTRICT ON UPDATE NO ACTION
+          );
+
+          CREATE TABLE IF NOT EXISTS bili_accounts (
+            uid INTEGER PRIMARY KEY NOT NULL,
+            is_default INTEGER DEFAULT 0,
+            bili_cookie TEXT NOT NULL,
+            bili_refresh_token TEXT NOT NULL
+          );
+
           CREATE TABLE IF NOT EXISTS settings (
             name VARCHAR PRIMARY KEY NOT NULL,
             value VARCHAR NOT NULL
@@ -79,6 +101,177 @@ class Main {
       throw error;
     }
     return this;
+  }
+
+  public getCustomRoomSettings() {
+    return new Promise<Database.Main.CustomRoomSettingsTableRow[]>((resolve, reject) => {
+      this.db.all<Database.Main.CustomRoomSettingsTableRow>(
+        "SELECT * FROM custom_room_settings",
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows);
+          }
+        }
+      );
+    });
+  }
+
+  public getCustomRoomSettingByRoomId(roomId: number) {
+    return new Promise<Database.Main.CustomRoomSettingsTableRow | null>((resolve, reject) => {
+      this.db.get<Database.Main.CustomRoomSettingsTableRow>(
+        "SELECT * FROM custom_room_settings WHERE room_id = ?",
+        [roomId],
+        (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(row || null);
+          }
+        }
+      );
+    });
+  }
+
+  public setCustomRoomSettings(
+    roomId: number,
+    settings: Omit<Database.Main.CustomRoomSettingsTableRow, "room_id">
+  ) {
+    return new Promise<void>((resolve, reject) => {
+      this.db.run(
+        `INSERT OR REPLACE INTO custom_room_settings (room_id, group_id, notice_message_1, notice_message_2, notice_message_3, upload_account_uid, upload_cover, upload_title, upload_desc, upload_tid)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          roomId,
+          settings.group_id,
+          settings.notice_message_1,
+          settings.notice_message_2,
+          settings.notice_message_3,
+          settings.upload_account_uid,
+          settings.upload_cover,
+          settings.upload_title,
+          settings.upload_desc,
+          settings.upload_tid,
+        ],
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  public getBiliAccounts() {
+    return new Promise<Database.Main.BiliAccountsTableRow[]>((resolve, reject) => {
+      this.db.all<Database.Main.BiliAccountsTableRow>(
+        "SELECT * FROM bili_accounts",
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows);
+          }
+        }
+      );
+    });
+  }
+
+  public getBiliAccountByUid(uid: number) {
+    return new Promise<Database.Main.BiliAccountsTableRow | null>((resolve, reject) => {
+      this.db.get<Database.Main.BiliAccountsTableRow>(
+        "SELECT * FROM bili_accounts WHERE uid = ?",
+        [uid],
+        (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(row || null);
+          }
+        }
+      );
+    });
+  }
+
+  public getDefaultBiliAccount() {
+    return new Promise<Database.Main.BiliAccountsTableRow | null>((resolve, reject) => {
+      this.db.get<Database.Main.BiliAccountsTableRow>(
+        "SELECT * FROM bili_accounts WHERE is_default = 1",
+        (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(row || null);
+          }
+        }
+      );
+    });
+  }
+
+  public setDefaultBiliAccount(uid: number) {
+    return new Promise<void>(async (resolve, reject) => {
+      await this._setAllBiliAccountNotDefault();
+
+      this.db.run("UPDATE bili_accounts SET is_default = 1 WHERE uid = ?", [uid], (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  private _setAllBiliAccountNotDefault() {
+    return new Promise<void>((resolve, reject) => {
+      this.db.run("UPDATE bili_accounts SET is_default = 0", (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  public addBiliAccount(
+    uid: number,
+    biliCookie: string,
+    biliRefreshToken: string,
+    is_default: number = 0
+  ) {
+    return new Promise<void>((resolve, reject) => {
+      this.db.run(
+        "INSERT INTO bili_accounts (uid, is_default, bili_cookie, bili_refresh_token) VALUES (?, ?, ?, ?)",
+        [uid, is_default, biliCookie, biliRefreshToken],
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  public updateBiliAccount(uid: number, biliCookie: string, biliRefreshToken: string) {
+    return new Promise<void>((resolve, reject) => {
+      this.db.run(
+        "UPDATE bili_accounts SET bili_cookie = ?, bili_refresh_token = ? WHERE uid = ?",
+        [biliCookie, biliRefreshToken, uid],
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
   }
 
   public getSettings() {

@@ -7,6 +7,7 @@ import pLimit from "@/utils/p-limit";
 import BilibiliUtils from "@/utils/bilibili";
 import { getUploadID, registerVideoStorage, uploadCover, uploadVideo, validateVideo } from "./api";
 import { BilibiliUploaderOptions } from "@/types/bilibili";
+import { sleep } from "@/utils/promise";
 
 interface BilibiliUploaderTask {
   upload(): Promise<{ aid: number; bvid: string }>;
@@ -21,19 +22,13 @@ interface BilibiliUploaderTask {
 export default class BilibiliUploader {
   static CHUNK_UPLOAD_TIMEOUT = 60 * 1000;
 
-  cookie: string;
-
   taskMap = new Map<number, BilibiliUploaderTask>();
   taskNowMaxId = 0;
 
-  constructor(cookie: string) {
-    this.cookie = cookie;
-  }
-
-  public createTask(options: BilibiliUploaderOptions) {
+  public createTask(options: BilibiliUploaderOptions, cookie: string) {
     const id = ++this.taskNowMaxId;
 
-    const upload = () => this.upload(options, id);
+    const upload = () => this.upload(options, cookie, id);
     this.taskMap.set(id, {
       upload,
       status: [],
@@ -46,7 +41,7 @@ export default class BilibiliUploader {
     return this.taskMap.get(taskId);
   }
 
-  private async upload(options: BilibiliUploaderOptions, taskId: number) {
+  private async upload(options: BilibiliUploaderOptions, cookie: string, taskId: number) {
     const taskList: BilibiliUploaderTask["status"] = (this.taskMap.get(taskId)!.status = []);
 
     function getFormatTime(time?: number) {
@@ -70,11 +65,11 @@ export default class BilibiliUploader {
       }
     */
 
-    const csrf = BilibiliUtils.getCSRF(this.cookie);
+    const csrf = BilibiliUtils.getCSRF(cookie);
 
     const video_info = options.video;
     const video_file_path = options.file_path;
-    const cover_base64 = options.cover_base64;
+    const cover_base64 = video_info.cover;
     const video_file_name = path.basename(video_file_path);
     const video_file_size = fs.statSync(video_file_path).size;
 
@@ -87,7 +82,7 @@ export default class BilibiliUploader {
         time: getFormatTime(),
       };
 
-      const registerVideoStorageResp = await registerVideoStorage(this.cookie, {
+      const registerVideoStorageResp = await registerVideoStorage(cookie, {
         file_name: video_file_name,
         file_size: video_file_size,
       });
@@ -112,7 +107,7 @@ export default class BilibiliUploader {
         time: getFormatTime(),
       };
 
-      const { upload_id } = await getUploadID(this.cookie, {
+      const { upload_id } = await getUploadID(cookie, {
         upload_url,
         file_size: video_file_size,
         partsize: chunk_size,
@@ -150,6 +145,8 @@ export default class BilibiliUploader {
             video_file_path,
             video_file_size
           );
+
+          await sleep(timeout);
           successCount++;
         });
 
@@ -171,7 +168,7 @@ export default class BilibiliUploader {
         time: getFormatTime(),
       };
 
-      await validateVideo(this.cookie, {
+      await validateVideo(cookie, {
         upload_url,
         file_name: bili_file_name,
         auth,
@@ -190,7 +187,7 @@ export default class BilibiliUploader {
         time: getFormatTime(),
       };
 
-      const { url: cover_url } = await uploadCover(this.cookie, {
+      const { url: cover_url } = await uploadCover(cookie, {
         csrf,
         cover: cover_base64,
       });
@@ -206,7 +203,7 @@ export default class BilibiliUploader {
         time: getFormatTime(),
       };
 
-      const resp = await uploadVideo(this.cookie, {
+      const resp = await uploadVideo(cookie, {
         csrf,
         data: {
           csrf,

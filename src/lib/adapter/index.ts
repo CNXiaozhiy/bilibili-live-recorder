@@ -1,11 +1,11 @@
 import logger from "@/logger";
-import BilibiliLiveArManager from "../bilibili/live-ar-manager";
+import BilibiliLiveAcManager from "../bilibili/live-ac-manager";
 
 export interface ISubAdapter {
   name: string;
 
   init(): void;
-  install(arm: BilibiliLiveArManager): void;
+  install(arm: BilibiliLiveAcManager): void;
 }
 
 export class Adapter {
@@ -21,7 +21,7 @@ export class Adapter {
     });
   }
 
-  install(arm: BilibiliLiveArManager) {
+  install(arm: BilibiliLiveAcManager) {
     this.adapters.forEach((adapter) => adapter.install(arm));
   }
 }

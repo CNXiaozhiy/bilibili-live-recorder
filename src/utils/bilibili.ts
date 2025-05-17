@@ -8,6 +8,7 @@ import {
   checkLoginQrcode,
   checkRefreshCookie,
   generateLoginQrcode,
+  getAccountInfo,
   getImageBase64FromUrl,
   getLiveRoomInfo,
   getUpUserInfo,
@@ -15,6 +16,32 @@ import {
 } from "@/lib/bilibili/api";
 import { Bilibili, BilibiliUploaderOptions, LiveRoomInfo, UserInfo } from "@/types/bilibili";
 import { SegmentMessages } from "@/types/one-bot";
+
+function transformRecStatus(status: Bilibili.RecorderStatus) {
+  switch (status) {
+    case Bilibili.RecorderStatus.RECORDING:
+      return "正在录制 🟢";
+    case Bilibili.RecorderStatus.STOPPING:
+      return "正在停止 ⏳";
+    case Bilibili.RecorderStatus.NOT_RECORDING:
+      return "未在录制 🔴";
+    default:
+      return "未知状态 ❌";
+  }
+}
+
+function transformLiveStatus(status: number) {
+  switch (status) {
+    case Bilibili.LiveRoomStatus.LIVE:
+      return "正在直播 🟢";
+    case Bilibili.LiveRoomStatus.LIVE_END:
+      return "未在直播 🔴";
+    case Bilibili.LiveRoomStatus.LIVE_SLIDESHOW:
+      return "正在轮播 🟡";
+    default:
+      return "未知状态 ❌";
+  }
+}
 
 async function login() {
   let retryTimes = 0;
@@ -39,10 +66,8 @@ async function login() {
     waitScan: while (true) {
       const { code, cookie, refresh_token } = await checkLoginQrcode(qrcode_key);
       if (code === 0) {
-        await bilibiliStore.updateField("bilibili_cookie", cookie!);
-        await bilibiliStore.updateField("bilibili_refresh_token", refresh_token!);
-        await bilibiliStore.state.db.setSetting("bilibili_cookie", cookie!);
-        await bilibiliStore.state.db.setSetting("bilibili_refresh_token", refresh_token!);
+        const accountInfo = await getAccountInfo(cookie!);
+        bilibiliStore.state.db.addBiliAccount(accountInfo.data.mid, cookie!, refresh_token!);
 
         logger.info("[Bili Login]", "登录成功✅");
         return;
@@ -61,39 +86,34 @@ async function login() {
 }
 
 async function checkAndRefreshCookie() {
-  logger.info("[Bili Login]", "检查 Cookie 状态⏳");
+  logger.info("[Bili Login]", "检查 所有账号 Cookie 状态⏳");
 
-  const { bilibili_cookie, bilibili_refresh_token } = bilibiliStore.state;
-  const resp = await checkRefreshCookie(bilibili_cookie);
+  const accounts = await bilibiliStore.state.db.getBiliAccounts();
 
-  if (resp.code === -101 || resp.data.refresh) {
-    logger.info("[Bili Login]", "Cookie 已过期❌，正在刷新 Cookie⚙️");
-    try {
-      const { cookie, refresh_token } = await refreshCookie(
-        bilibili_cookie,
-        bilibili_refresh_token
-      );
+  for (const account of accounts) {
+    const { uid, bili_cookie, bili_refresh_token } = account;
+    const resp = await checkRefreshCookie(bili_cookie);
 
-      await bilibiliStore.updateField("bilibili_cookie", cookie);
-      await bilibiliStore.updateField("bilibili_refresh_token", refresh_token);
+    if (resp.code === -101 || resp.data.refresh) {
+      logger.info("[Bili Login]", `账号 ${uid} Cookie 已过期❌，正在刷新 Cookie⚙️`);
+      try {
+        const { cookie, refresh_token } = await refreshCookie(bili_cookie, bili_refresh_token);
 
-      await bilibiliStore.state.db.setSetting("bilibili_cookie", cookie);
-      await bilibiliStore.state.db.setSetting("bilibili_refresh_token", refresh_token);
+        await bilibiliStore.state.db.updateBiliAccount(uid, cookie, refresh_token);
 
-      logger.info("[Bili Login]", "Cookie 刷新成功✅");
-    } catch (e) {
-      if ((e as Error).message.startsWith("[LOGIN_EXPIRED]")) {
-        logger.warn("[Bili Login]", (e as Error).message);
-        await bilibiliStore.state.db.setSetting("bilibili_cookie", "");
-        await bilibiliStore.state.db.setSetting("bilibili_refresh_token", "");
-        process.exit(0);
-      } else {
-        logger.error("[Bili Login]", (e as Error).message);
-        process.exit(0);
+        logger.info("[Bili Login]", `账号 ${uid} Cookie 刷新成功✅`);
+      } catch (e) {
+        if ((e as Error).message.startsWith("[LOGIN_EXPIRED]")) {
+          logger.warn("[Bili Login]", (e as Error).message);
+          process.exit(0);
+        } else {
+          logger.error("[Bili Login]", (e as Error).message);
+          process.exit(0);
+        }
       }
+    } else {
+      logger.info("[Bili Login]", `账号 ${uid} Cookie 正常✅`);
     }
-  } else {
-    logger.info("[Bili Login]", "Cookie 正常✅");
   }
 }
 
@@ -118,16 +138,16 @@ function parseCookies(cookieStrings: string[]): string {
  * @param file
  * @returns
  */
-async function generateUploadrOptions(
+async function generateDefaultUploadrOptions(
   roomId: number,
   stat: BilibiliLiveRecorder["stat"],
+  liveRoomInfo: LiveRoomInfo,
   file: string
 ): Promise<BilibiliUploaderOptions> {
-  const liveRoomInfo = stat.liveRoomInfo || (await getLiveRoomInfo(roomId));
   const userInfo = await getUpUserInfo(liveRoomInfo.uid);
   return {
     file_path: file,
-    cover_base64: await getImageBase64FromUrl(liveRoomInfo.user_cover),
+
     video: {
       title: `【${userInfo.card.name}】【直播回放】${liveRoomInfo.title} ${liveRoomInfo.live_time}`,
       description:
@@ -147,34 +167,29 @@ async function generateUploadrOptions(
         `\n` +
         `侵权请联系本人, 本人将立即删除\n\n` +
         `由 Xz-BLR-System ${process.env.APP_VERSION} 系统录制\n`,
+      cover: await getImageBase64FromUrl(liveRoomInfo.user_cover),
     },
   };
 }
 
-function _transformRecStatus(status: Bilibili.RecorderStatus) {
-  switch (status) {
-    case Bilibili.RecorderStatus.RECORDING:
-      return "正在录制 🟢";
-    case Bilibili.RecorderStatus.STOPPING:
-      return "正在停止 ⏳";
-    case Bilibili.RecorderStatus.NOT_RECORDING:
-      return "未在录制 🔴";
-    default:
-      return "未知状态 ❌";
+async function generateUploadrOptions(
+  roomId: number,
+  stat: BilibiliLiveRecorder["stat"],
+  liveRoomInfo: LiveRoomInfo,
+  file: string
+): Promise<BilibiliUploaderOptions> {
+  const defaultOptions = await generateDefaultUploadrOptions(roomId, stat, liveRoomInfo, file);
+  const customRoomSetting = await bilibiliStore.state.db.getCustomRoomSettingByRoomId(roomId);
+  if (customRoomSetting) {
+    if (customRoomSetting.upload_title) defaultOptions.video.title = customRoomSetting.upload_title;
+    if (customRoomSetting.upload_desc)
+      defaultOptions.video.description = customRoomSetting.upload_desc;
+    if (customRoomSetting.upload_cover)
+      defaultOptions.video.cover = await getImageBase64FromUrl(customRoomSetting.upload_cover);
+    if (customRoomSetting.upload_tid) defaultOptions.video.tid = customRoomSetting.upload_tid;
+    if (customRoomSetting.upload_tag) defaultOptions.video.tag = customRoomSetting.upload_tag;
   }
-}
-
-function _transformLiveStatus(status: number) {
-  switch (status) {
-    case Bilibili.LiveRoomStatus.LIVE:
-      return "正在直播 🟢";
-    case Bilibili.LiveRoomStatus.LIVE_END:
-      return "未在直播 🔴";
-    case Bilibili.LiveRoomStatus.LIVE_SLIDESHOW:
-      return "正在轮播 🟡";
-    default:
-      return "未知状态 ❌";
-  }
+  return defaultOptions;
 }
 
 const format = {
@@ -187,8 +202,8 @@ const format = {
     const text =
       (upUserInfo ? `【${upUserInfo.card.name}】${roomInfo.title}\n` : "") +
       `直播间ID: ${roomInfo.room_id}\n` +
-      `直播状态: ${_transformLiveStatus(roomInfo.live_status)}\n` +
-      `录制状态: ${_transformRecStatus(liveRecorder.recStatus)}` +
+      `直播状态: ${transformLiveStatus(roomInfo.live_status)}\n` +
+      `录制状态: ${transformRecStatus(liveRecorder.recStatus)}` +
       (isRecording
         ? `\n当前分段: ${liveRecorder.segIndex}\n` +
           `当前帧率: ${liveRecorder.recProgress?.currentFps || "未知"}\n` +
@@ -205,7 +220,7 @@ const format = {
       (upUserInfo ? `【${upUserInfo.card.name}】${roomInfo.title}\n` : "") +
       `直播间ID: ${roomInfo.room_id}\n` +
       `直播间简介: ${roomInfo.description || "无"}\n` +
-      `直播间状态: ${_transformLiveStatus(roomInfo.live_status)}\n` +
+      `直播间状态: ${transformLiveStatus(roomInfo.live_status)}\n` +
       `直播间人气: ${roomInfo.online}\n` +
       `开播时间: ${moment(roomInfo.live_time).format("YYYY-MM-DD HH:mm:ss")}\n` +
       `地址: https://live.bilibili.com/${roomInfo.room_id}`;
@@ -218,6 +233,8 @@ const format = {
 };
 
 export default class BilibiliUtils {
+  static transformLiveStatus = transformLiveStatus;
+  static transformRecStatus = transformRecStatus;
   static login = login;
   static checkAndRefreshCookie = checkAndRefreshCookie;
   static getCSRF = getCSRF;

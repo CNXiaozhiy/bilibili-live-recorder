@@ -1,12 +1,12 @@
 import fs from "fs";
 import logger from "@/logger";
 import FileTreeParse from "@/lib/bilibili/file-tree-parse";
-import bilibiliStore from "@/store/bilibili";
 import { RecordFileMeta, UploadFileMeta } from "@/types/bilibili";
 import { getLiveRoomInfo } from "@/lib/bilibili/api";
 import FfpmegUtils from "./ffmpeg";
 import FileNameUtils from "./file-name";
 import BilibiliUtils from "./bilibili";
+import { createTask } from "@/gInstance/uploader";
 
 async function checkRecordMetaCanReused(recordFileMetaMap: Map<string, RecordFileMeta>) {
   for (const [key, value] of recordFileMetaMap) {
@@ -29,17 +29,14 @@ async function checkRecordMetaCanReused(recordFileMetaMap: Map<string, RecordFil
         const options = await BilibiliUtils.generateUploadrOptions(
           value.room_id,
           {
-            startTime: new Date(value.recorder_stat.start_time),
-            endTime: value.recorder_stat.end_time
-              ? new Date(value.recorder_stat.end_time)
-              : undefined,
-            liveRoomInfo: value.live_room_info,
+            startTime: new Date(value.start_time),
+            endTime: value.end_time ? new Date(value.end_time) : undefined,
           },
+          value.live_room_info,
           output
         );
 
-        const uploader = bilibiliStore.state.publicUploader;
-        const { id, upload } = uploader.createTask(options);
+        const { id, upload } = await createTask(options, value.room_id);
         logger.info("[Task Recovery]", value.hash, `开始上传 TaskID: ${id}`);
 
         try {
@@ -75,10 +72,9 @@ async function checkRecordMetaCanReused(recordFileMetaMap: Map<string, RecordFil
 }
 
 async function recoverUpload(uploadMeteFilesMap: Map<string, UploadFileMeta>) {
-  const uploader = bilibiliStore.state.publicUploader;
   for (const [key, value] of uploadMeteFilesMap) {
     logger.info("[Task Recovery]", `开始恢复投稿 ${value.hash} ${value.room_id}⏳`);
-    const { id, upload } = uploader.createTask(value.uploaderOptions);
+    const { id, upload } = await createTask(value.uploader_options, value.room_id);
     logger.info("[Task Recovery]", value.hash, `开始上传 TaskID: ${id}`);
     try {
       const { aid, bvid } = await upload();

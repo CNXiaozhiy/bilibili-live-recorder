@@ -1,8 +1,6 @@
 import logger from "@/logger";
-import BilibiliLiveRecorder from "../bilibili/live-recorder";
-import BilibiliLiveMonitor from "../bilibili/live-monitor";
-import BilibiliLiveArManager from "../bilibili/live-ar-manager";
-import BilibiliAutoUploader from "../bilibili/live-auto-uploader";
+import BilibiliLiveAcManager from "../bilibili/live-ac-manager";
+import BilibiliLiveAutoController from "../bilibili/live-auto-controller";
 import bilibiliStore from "@/store/bilibili";
 import { getLiveRoomInfo, getLiveStreamUrl, getUpUserInfo } from "../bilibili/api";
 import { ISubAdapter } from ".";
@@ -15,19 +13,20 @@ import ImageUtils from "@/utils/image";
 import { SegmentMessage, SegmentMessages } from "@/types/one-bot";
 import { getPackageJson } from "@/utils/package";
 import { Bilibili } from "@/types/bilibili";
+import { getTask } from "@/gInstance/uploader";
 
 export default class XzQbotNotificationAdapter implements ISubAdapter {
   public name = "xz-qbot";
 
   constructor(private xzQbot: IXzQbot) {}
   init(): void {}
-  install(arm: BilibiliLiveArManager): void {
+  install(acm: BilibiliLiveAcManager): void {
     // 初始化监听器
-    arm.getArs().forEach(({ ar }) => {
-      this.installListener(ar.roomId, ar.liveMonitor, ar.liveRecorder, ar.autoUploader);
+    acm.getAcs().forEach(({ ac }) => {
+      this.installListener(ac.roomId, ac);
     });
-    arm.on("hot-reload-add", (ar) => {
-      this.installListener(ar.roomId, ar.liveMonitor, ar.liveRecorder, ar.autoUploader);
+    acm.on("hot-reload-add", (ac) => {
+      this.installListener(ac.roomId, ac);
     });
 
     this.xzQbot.connect().then(() => {
@@ -40,7 +39,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           logger.info("[XzQBot Account Info]", "机器人昵称:", info.data.nickname);
 
           // 安装机器人消息处理器
-          this.installBotMessageHandler(arm);
+          this.installBotMessageHandler(acm);
         })
         .catch((err) => {
           logger.error("[XzQBot Adapter]", "XzQBot 对接失败", err);
@@ -49,12 +48,9 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
   }
 
   private preventFirst = new Set();
-  async installListener(
-    room_id: number,
-    liveMonitor: BilibiliLiveMonitor,
-    liveRecorder: BilibiliLiveRecorder,
-    autoUploader: BilibiliAutoUploader | null
-  ) {
+  async installListener(room_id: number, autoController: BilibiliLiveAutoController) {
+    const { liveMonitor, liveRecorder } = autoController;
+
     // const bot = this.xzQbotPlugin.botInstance;
     const bot = this.xzQbot;
 
@@ -100,7 +96,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
     const isFirst = (roomId: number) => {
       if (this.preventFirst.has(roomId)) return false;
       this.preventFirst.add(roomId);
-      logger.debug("[XzQbot Adapter]", `Added room ${roomId} to prevent_first`);
+      // logger.debug("[XzQbot Adapter]", `Added room ${roomId} to prevent_first`);
       return true;
     };
 
@@ -159,7 +155,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       });
     });
 
-    autoUploader?.on("upload-start", async (taskID) => {
+    autoController.on("upload-start", async (taskID) => {
       const { subscribers, groups } = await getSubscribes();
 
       groups.forEach((group_id) => {
@@ -176,7 +172,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       });
     });
 
-    autoUploader?.on("upload-success", async ({ aid, bvid }) => {
+    autoController.on("upload-success", async ({ aid, bvid }) => {
       const { subscribers, groups } = await getSubscribes();
 
       groups.forEach((group_id) => {
@@ -193,7 +189,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       });
     });
 
-    autoUploader?.on("upload-error", async (e) => {
+    autoController.on("upload-error", async (e) => {
       const { subscribers, groups } = await getSubscribes();
 
       groups.forEach((group_id) => {
@@ -206,7 +202,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
     });
   }
 
-  installBotMessageHandler(arm: BilibiliLiveArManager): void {
+  installBotMessageHandler(acm: BilibiliLiveAcManager): void {
     // const bot = this.xzQbotPlugin.botInstance;
     const bot = this.xzQbot;
 
@@ -301,8 +297,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               roomId = parseInt(params[0]);
             }
 
-            if (arm.hasSubscriber(roomId, user.symbol)) return "您已经订阅了该直播间";
-            arm.addSubscriber(roomId, user.symbol);
+            if (acm.hasSubscriber(roomId, user.symbol)) return "您已经订阅了该直播间";
+            acm.addSubscriber(roomId, user.symbol);
             await bilibiliStore.state.db.insertSubscribe(roomId, user.group_id, user.user_id);
             return "订阅成功！";
           } catch (error) {
@@ -318,8 +314,8 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
         async (user, params) => {
           try {
             const roomId = parseInt(params[0]);
-            if (!arm.hasSubscriber(roomId, user.symbol)) return "您还没有订阅该直播间";
-            arm.reduceSubscriber(roomId, user.symbol);
+            if (!acm.hasSubscriber(roomId, user.symbol)) return "您还没有订阅该直播间";
+            acm.reduceSubscriber(roomId, user.symbol);
             bilibiliStore.state.db.deleteSubscribe(roomId, user.group_id, user.user_id);
             return "取消订阅成功";
           } catch (error) {
@@ -332,13 +328,13 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           user.user_id,
           user.group_id
         );
-        const message = arm
-          .getArs()
-          .filter((item) => rooms.includes(item.ar.roomId))
+        const message = acm
+          .getAcs()
+          .filter((item) => rooms.includes(item.ac.roomId))
           .map((item) =>
             BilibiliUtils.format.liveRoomInfo(
-              item.ar.liveMonitor.roomInfo!,
-              item.ar.liveMonitor.userInfo!
+              item.ac.liveMonitor.roomInfo!,
+              item.ac.liveMonitor.userInfo!
             )
           )
           .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } })
@@ -350,14 +346,14 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           user.user_id,
           user.group_id
         );
-        const message = arm
-          .getArs()
-          .filter((item) => rooms.includes(item.ar.roomId))
+        const message = acm
+          .getAcs()
+          .filter((item) => rooms.includes(item.ac.roomId))
           .map((item) =>
             BilibiliUtils.format.recordStatus(
-              item.ar.liveMonitor.roomInfo!,
-              item.ar.liveRecorder,
-              item.ar.liveMonitor.userInfo!
+              item.ac.liveMonitor.roomInfo!,
+              item.ac.liveRecorder,
+              item.ac.liveMonitor.userInfo!
             )
           )
           .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } })
@@ -365,12 +361,12 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
         return message.length > 0 ? message : "您还没有订阅直播间";
       })
       .register("所有直播间", {}, () => {
-        const message = arm
-          .getArs()
+        const message = acm
+          .getAcs()
           .map((item) =>
             BilibiliUtils.format.liveRoomInfo(
-              item.ar.liveMonitor.roomInfo!,
-              item.ar.liveMonitor.userInfo!
+              item.ac.liveMonitor.roomInfo!,
+              item.ac.liveMonitor.userInfo!
             )
           )
           .intersperse<SegmentMessage>({ type: "text", data: { text: "\n\n" } })
@@ -384,7 +380,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
         },
         async (_, params) => {
           const taskId = parseInt(params[0]);
-          const task = bilibiliStore.state.publicUploader.getTask(taskId);
+          const task = getTask(taskId);
           if (!task) return "任务不存在";
           return task.status
             .map(
@@ -406,7 +402,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           if (!isAdmin) return "权限不足";
 
           const roomId = parseInt(params[0]);
-          const ar = arm.getAr(roomId);
+          const ar = acm.getAc(roomId);
           if (!ar) return "未找到直播间";
           if (ar.liveRecorder.recStatus !== Bilibili.RecorderStatus.RECORDING)
             return "当前未在录制";
@@ -454,7 +450,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           try {
             const messages: SegmentMessages[] = [];
             for (const id of rooms) {
-              const liveRoomInfo = arm.getAr(id)!.liveMonitor.roomInfo!;
+              const liveRoomInfo = acm.getAc(id)!.liveMonitor.roomInfo!;
               if (liveRoomInfo.live_status !== Bilibili.LiveRoomStatus.LIVE) {
                 messages.push([{ type: "text", data: { text: `直播间 ${id} 未开播` } }]);
                 continue;

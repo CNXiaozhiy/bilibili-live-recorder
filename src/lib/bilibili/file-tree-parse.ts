@@ -20,7 +20,7 @@ export default class FileTreeParse {
       logger.warn("[File Tree Parse - Meta Verify]", `元文件 ${metaFilePath} 格式有误`);
       fs.unlinkSync(metaFilePath);
       return null;
-    } else if (json.type !== "live-recorder" && json.type !== "auto-uploader") {
+    } else if (json.type !== "live-recorder" && json.type !== "uploader") {
       logger.warn("[File Tree Parse - Meta Verify]", `元文件 ${metaFilePath} 类型不支持`);
       fs.unlinkSync(metaFilePath);
       return null;
@@ -93,15 +93,26 @@ export default class FileTreeParse {
           if (!json.record_files || !Array.isArray(json.record_files))
             throw new Error(`元文件 ${file} 格式有误`);
 
+          const newRecordFiles: string[] = [];
           json.record_files.forEach((recordFile) => {
-            if (!fs.existsSync(recordFile) || !fs.statSync(recordFile).isFile())
-              throw new Error(`元文件 ${recordFile} 原始录像文件丢失或文件格式错误`);
+            if (!fs.existsSync(recordFile) || !fs.statSync(recordFile).isFile()) {
+              logger.warn(
+                "[File Tree Parse]",
+                `元文件 ${recordFile} 原始录像文件丢失或文件格式错误，清除无效文件 ${recordFile}`
+              );
+              // throw new Error(`元文件 ${recordFile} 原始录像文件丢失或文件格式错误`);
+            } else {
+              newRecordFiles.push(recordFile);
+            }
           });
+
+          json.record_files = newRecordFiles;
+          fs.writeFileSync(filePath, JSON.stringify(json, null, 2));
 
           recordMeteFilesMap.set(filePath, json);
           recordMeteFiles.push(filePath);
           recordFiles.push(...json.record_files);
-        } else if (json.type === "auto-uploader") {
+        } else if (json.type === "uploader") {
           if (!json.merged_record_file || typeof json.merged_record_file !== "string")
             throw new Error(`元文件 ${file} 格式有误`);
 

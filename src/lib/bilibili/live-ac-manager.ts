@@ -1,10 +1,10 @@
-import { LiveAutoRecorderManagerEvents, LiveAutoRecorderManagerOptions } from "@/types/bilibili";
-import BilibiliLiveAutoRecorder from "./live-auto-recoder";
+import { LiveAutoControllerManagerEvents, LiveAutoRecorderManagerOptions } from "@/types/bilibili";
+import BilibiliLiveAutoRecorder from "./live-auto-controller";
 import EventEmitter from "events";
 
-// Ar -> auto recorder
+// Ac -> auto recorder
 
-export default class BilibiliLiveArManager extends EventEmitter<LiveAutoRecorderManagerEvents> {
+export default class BilibiliLiveAcManager extends EventEmitter<LiveAutoControllerManagerEvents> {
   private config: LiveAutoRecorderManagerOptions;
   private rooms: Map<number, BilibiliLiveAutoRecorder> = new Map();
   private subscribers: Map<number, string[]> = new Map();
@@ -24,10 +24,10 @@ export default class BilibiliLiveArManager extends EventEmitter<LiveAutoRecorder
       return;
     }
 
-    const ar = new BilibiliLiveAutoRecorder({ ...this.config, roomId });
-    this.rooms.set(roomId, ar);
+    const ac = new BilibiliLiveAutoRecorder({ ...this.config, roomId });
+    this.rooms.set(roomId, ac);
     this.subscribers.set(roomId, [user]);
-    this.emit("hot-reload-add", ar);
+    this.emit("hot-reload-add", ac);
   }
 
   public reduceSubscriber(roomId: number, user: string) {
@@ -36,26 +36,26 @@ export default class BilibiliLiveArManager extends EventEmitter<LiveAutoRecorder
     this.subscribers.get(roomId)!.splice(this.subscribers.get(roomId)!.indexOf(user), 1);
 
     if (this.subscribers.get(roomId)!.length === 0) {
-      const ar = this.rooms.get(roomId);
-      if (!ar) return;
+      const ac = this.rooms.get(roomId);
+      if (!ac) return;
 
-      this.emit("hot-reload-remove", ar);
-      ar.destroy();
+      this.emit("hot-reload-remove", ac);
+      ac.destroy();
       this.rooms.delete(roomId);
     }
   }
 
-  public getAr(roomId: number) {
+  public getAc(roomId: number) {
     return this.rooms.get(roomId);
   }
 
-  public getArs() {
-    return Array.from(this.rooms.values()).map((ar) => {
-      return { ar, subscribers: this.subscribers.get(ar.roomId)?.length };
+  public getAcs() {
+    return Array.from(this.rooms.values()).map((ac) => {
+      return { ac, subscribers: this.subscribers.get(ac.roomId)?.length };
     });
   }
 
   public destroy() {
-    this.rooms.forEach((ar) => ar.destroy());
+    this.rooms.forEach((ac) => ac.destroy());
   }
 }
