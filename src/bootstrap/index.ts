@@ -2,7 +2,6 @@ import "@/utils/env";
 import "@/utils/extensions";
 
 import logger from "@/logger";
-logger.logo();
 
 import "./env";
 import "./file-clean";
@@ -13,9 +12,4 @@ import bilibiliAccount from "@/lib/bilibili/account";
 
 import AdaptersReady from "./adapter";
 
-export default [
-  bilibiliCachePool.ready,
-  bilibiliStore.ready,
-  bilibiliAccount.ready,
-  ...AdaptersReady,
-] as Promise<unknown>[];
+export default [bilibiliCachePool.ready, bilibiliStore.ready, bilibiliAccount.ready, ...AdaptersReady] as Promise<unknown>[];

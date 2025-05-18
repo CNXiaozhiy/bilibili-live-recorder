@@ -1,4 +1,4 @@
-import logger from "@/logger";
+import logger, { httpLogger } from "@/logger";
 import axios from "axios";
 import axiosRetry from "axios-retry";
 import throttledQueue from "throttled-queue";
@@ -25,12 +25,44 @@ instance.interceptors.request.use(async (config) => {
   if (!config.headers["No-Throttleo"]) await new Promise<void>((resolve) => throttle(resolve));
 
   config.headers["User-Agent"] =
-    config.headers["User-Agent"] ||
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36";
+    config.headers["User-Agent"] || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36";
   config.headers["Referer"] = config.headers["Referer"] || "https://www.bilibili.com";
   config.headers["Origin"] = config.headers["Origin"] || "https://www.bilibili.com";
 
   return config;
 });
+
+instance.interceptors.request.use(
+  (config) => {
+    httpLogger.info("Sending request", {
+      method: config.method,
+      url: config.url,
+      headers: config.headers,
+      timeout: config.timeout,
+      data: config.data,
+    });
+    return config;
+  },
+  (error) => {
+    httpLogger.error(error);
+    return Promise.reject(error);
+  }
+);
+
+instance.interceptors.response.use(
+  (response) => {
+    httpLogger.info("Received response", {
+      method: response.config.method,
+      url: response.config.url,
+      status: response.status,
+      data: response.data,
+    });
+    return response;
+  },
+  (error) => {
+    httpLogger.error(error.config, error.response?.data);
+    return Promise.reject(error);
+  }
+);
 
 export default instance;

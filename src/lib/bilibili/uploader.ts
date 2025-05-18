@@ -135,16 +135,7 @@ export default class BilibiliUploader {
           // updateProgress(`视频分片上传 ${successCount}/${totalChunks} /${i + 1}`, "pending", true);
           taskList[2].process = successCount + "/" + totalChunks + " /" + (i + 1);
 
-          await this.uploadChunk(
-            i,
-            chunk_size,
-            upload_url,
-            auth,
-            upload_id,
-            totalChunks,
-            video_file_path,
-            video_file_size
-          );
+          await this.uploadChunk(i, chunk_size, upload_url, auth, upload_id, totalChunks, video_file_path, video_file_size);
 
           await sleep(timeout);
           successCount++;
@@ -302,22 +293,9 @@ export default class BilibiliUploader {
 
       logger.info("[Bili Uploader]", `视频分片上传 ${chunkIndex + 1}/${totalChunks}`, resp.data);
     } catch (e) {
-      logger.error(
-        "[Bili Uploader]",
-        `视频分片上传 ${chunkIndex + 1}/${totalChunks} error`,
-        (e as Error).message
-      );
+      logger.error("[Bili Uploader]", `视频分片上传 ${chunkIndex + 1}/${totalChunks} error`, (e as Error).message);
       logger.warn("[Bili Uploader]", `开始递归重试`);
-      await this.uploadChunk(
-        chunkIndex,
-        chunk_size,
-        upload_url,
-        auth,
-        upload_id,
-        totalChunks,
-        video_file_path,
-        video_file_size
-      );
+      await this.uploadChunk(chunkIndex, chunk_size, upload_url, auth, upload_id, totalChunks, video_file_path, video_file_size);
     }
   }
 }
