@@ -14,6 +14,8 @@ import adapterStore from "./store/adapter";
 import logger from "./logger";
 
 const app = async () => {
+  logger.info("[App]", "正在启动...");
+
   const acm = new BilibiliLiveAcManager({ saveRecordFolder: process.env.SAVE_RECORD_FOLDER! });
   const rooms = await bilibiliStore.state.db.getSubscribesTable();
   rooms.forEach(({ room_id, group_id, user_id }) => acm.addSubscriber(room_id, `${group_id}_${user_id}`));

@@ -3,6 +3,9 @@ import "@/utils/extensions";
 
 import logger from "@/logger";
 
+logger.info("[System]", "正在启动...");
+logger.info("[Bootstrap]", "加载前置服务...");
+
 import "./env";
 import "./file-clean";
 
