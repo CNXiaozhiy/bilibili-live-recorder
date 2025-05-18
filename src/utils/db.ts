@@ -323,7 +323,7 @@ class Main {
         if (err) {
           reject(err);
         } else if (row) {
-          resolve(row.permission > (permission || 0));
+          resolve(row.permission >= (permission || 0));
         } else {
           resolve(false);
         }

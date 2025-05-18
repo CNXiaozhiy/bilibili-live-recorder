@@ -456,7 +456,7 @@ export interface SegmentMessageMap {
   image: { file: FilePath };
   record: { file: FilePath };
   video: { file: FilePath };
-  at: { qq: QQNumber };
+  at: { qq: QQNumber | "all" };
   rps: {};
   dice: {};
   shake: {};
@@ -465,9 +465,7 @@ export interface SegmentMessageMap {
   share: { url: string; title: string; content?: string; image?: string };
   contact: { type: "qq"; id: QQNumber } | { type: "group"; id: QQNumber };
   location: { lat: string; lon: string };
-  music:
-    | { type: "qq" | "163" | "xm"; id: string }
-    | { type: "custom"; url: string; audio: string; title: string };
+  music: { type: "qq" | "163" | "xm"; id: string } | { type: "custom"; url: string; audio: string; title: string };
   reply: { id: MessageID };
   forward: { id: ForwardMessageID };
   node: { id: MessageID } | { user_id: QQNumber; nickname: string; content: Messages };
@@ -789,10 +787,4 @@ export type RelayEvent = {
   message: string;
 };
 
-export type Events =
-  | RelayEvent
-  | MessageEvent
-  | MessageSentEvent
-  | RequestEvent
-  | NoticeEvent
-  | MetaEvent;
+export type Events = RelayEvent | MessageEvent | MessageSentEvent | RequestEvent | NoticeEvent | MetaEvent;

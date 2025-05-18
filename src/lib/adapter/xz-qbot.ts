@@ -129,19 +129,21 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       if (isFirst(room_id)) return;
 
       const { subscribers, groups } = await getSubscribes();
-      const _customMessage = (await bilibiliStore.state.db.getCustomRoomSettingByRoomId(room_id))?.notice_message_1;
-      const customMessage = _customMessage ? customFormatRender(_customMessage, { room_id }) : null;
+      const customRoomSetting = await bilibiliStore.state.db.getCustomRoomSettingByRoomId(room_id);
+      const customMessage = customRoomSetting?.notice_message_1 ? customFormatRender(customRoomSetting.notice_message_1, { room_id }) : null;
 
       groupUsers(subscribers).forEach(({ group_id, user_id }) => {
         bot
           .sendGroup(
             group_id,
-            customMessage || [
-              { type: "text", data: { text: `您订阅的直播间开始直播啦\n\n` } },
-              ...BilibiliUtils.format.liveRoomInfo(liveMonitor.roomInfo!, liveMonitor.userInfo!),
-              { type: "text", data: { text: "\n\n" } },
-              ...generateAt(user_id),
-            ]
+            [
+              customMessage || [
+                { type: "text", data: { text: `您订阅的直播间开始直播啦\n\n` } },
+                ...BilibiliUtils.format.liveRoomInfo(liveMonitor.roomInfo!, liveMonitor.userInfo!),
+                { type: "text", data: { text: "\n\n" } },
+              ],
+              customRoomSetting?.group_id === group_id ? { type: "at", data: { qq: "all" } } : generateAt(user_id),
+            ].flat() as SegmentMessages
           )
           .catch(this._messageSendError);
       });
