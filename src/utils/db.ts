@@ -140,8 +140,8 @@ class Main {
   public setCustomRoomSettings(roomId: number, settings: Omit<Database.Main.CustomRoomSettingsTableRow, "room_id">) {
     return new Promise<void>((resolve, reject) => {
       this.db.run(
-        `INSERT OR REPLACE INTO custom_room_settings (room_id, group_id, notice_message_1, notice_message_2, notice_message_3, upload_account_uid, upload_cover, upload_title, upload_desc, upload_tid)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO custom_room_settings (room_id, group_id, notice_message_1, notice_message_2, notice_message_3, upload_account_uid, upload_cover, upload_title, upload_desc, upload_tid, upload_tag)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           roomId,
           settings.group_id,
@@ -153,6 +153,7 @@ class Main {
           settings.upload_title,
           settings.upload_desc,
           settings.upload_tid,
+          settings.upload_tag
         ],
         (err) => {
           if (err) {
