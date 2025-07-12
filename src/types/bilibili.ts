@@ -332,7 +332,7 @@ export type LiveAutoRecorderManagerOptions = Omit<LiveAutoRecorderOptions, "room
 export interface LiveRecoderEvents {
   "rec-start": [string]; // hash
   "rec-stoping": [string]; // hash
-  "rec-end": [string, string]; // hash, mergedFilePath
+  "rec-end": [string, string, number]; // hash, mergedFilePath, duration
   "rec-progress": [FfmpegCommandProgress];
   "segment-change": [string, string[]];
   "rec-error": [unknown]; // fatal error
@@ -342,7 +342,7 @@ export interface LiveRecoderEvents {
 export interface LiveMonitorEvents {
   "status-change": [LiveRoomInfo];
   "live-start": [LiveRoomInfo];
-  "live-end": [LiveRoomInfo];
+  "live-end": [LiveRoomInfo, number]; // duration
   "live-slideshow": [LiveRoomInfo];
   "monitor-error": [unknown];
 }

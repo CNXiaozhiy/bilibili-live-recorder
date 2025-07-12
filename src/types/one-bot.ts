@@ -783,7 +783,7 @@ export type MetaEvent = HeartbeatMetaEvent | LifecycleMetaEvent;
 
 // XzQBot Group 的自定义事件
 export type RelayEvent = {
-  post_type: "relay-welcome";
+  post_type: "relay-welcome" | "relay-warning";
   message: string;
 };
 

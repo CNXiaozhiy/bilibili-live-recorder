@@ -63,12 +63,12 @@ export default class XzQbot extends EventEmitter<XzQbotEvents> {
 
   private installListener(ws: WebSocket) {
     ws.on("close", (code) => {
-      logger.warn("[XzQbot Websocket]", "连接断开，正在尝试重新连接, Code:", code);
-      this.reconnectWebsocket();
+      logger.warn("[XzQbot Websocket]", "连接断开，将在30秒后尝试重新连接, Code:", code);
+      setTimeout(() => this.reconnectWebsocket(), 30 * 1000);
     });
     ws.on("error", (err) => {
-      logger.error("[XzQbot Websocket]", "连接发生错误，正在尝试重新连接", err);
-      this.reconnectWebsocket();
+      logger.error("[XzQbot Websocket]", "连接发生错误，将在30秒后尝试重新连接", err);
+      setTimeout(() => this.reconnectWebsocket(), 30 * 1000);
     });
 
     const chooseHandler = (e: OneBot.Events) => {
@@ -79,6 +79,7 @@ export default class XzQbot extends EventEmitter<XzQbotEvents> {
         return;
       }
       if (e.post_type === "relay-welcome") this._xzQBotGroupRelayHandler(e);
+      else if (e.post_type === "relay-warning") this._xzQBotGroupRelayHandler(e);
       else if (e.post_type === "message") this._messageHandler(e);
       else if (e.post_type === "message_sent") this._messageHandler(e);
       else if (e.post_type === "notice") this._notifyHandler(e);

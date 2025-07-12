@@ -277,9 +277,10 @@ const format = {
       `直播间ID: ${roomInfo.room_id}\n` +
       `直播间简介: ${roomInfo.description || "无"}\n` +
       `直播间状态: ${transformLiveStatus(roomInfo.live_status)}\n` +
-      `直播间人气: ${roomInfo.online}\n` +
-      `开播时间: ${moment(roomInfo.live_time).format("YYYY-MM-DD HH:mm:ss")}\n` +
-      `地址: https://live.bilibili.com/${roomInfo.room_id}`;
+      (roomInfo.live_status === Bilibili.LiveRoomStatus.LIVE
+        ? `直播间人气: ${roomInfo.online}\n` + `开播时间: ${moment(roomInfo.live_time).format("YYYY-MM-DD HH:mm:ss")}\n`
+        : "") +
+      `直播间地址: https://live.bilibili.com/${roomInfo.room_id}\n👆点击链接进入直播间`;
 
     return [
       { type: "image", data: { file: roomInfo.user_cover } },

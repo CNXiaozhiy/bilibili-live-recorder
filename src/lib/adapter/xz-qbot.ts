@@ -149,7 +149,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       });
     });
 
-    liveMonitor.on("live-end", async () => {
+    liveMonitor.on("live-end", async (_, liveDuration) => {
       if (isFirst(room_id)) return;
 
       const { subscribers, groups } = await getSubscribes();
@@ -161,7 +161,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
           .sendGroup(
             group_id,
             customMessage || [
-              { type: "text", data: { text: `您订阅的直播间结束直播啦\n\n` } },
+              { type: "text", data: { text: `您订阅的直播间结束直播啦\n直播时长: ${Tools.formatTime(liveDuration) || "未知"}\n` } },
               ...BilibiliUtils.format.liveRoomInfo(liveMonitor.roomInfo!, liveMonitor.userInfo!),
             ]
           )
@@ -182,7 +182,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
             {
               type: "text",
               data: {
-                text: `直播间 ${room_id} 录制结束\n\n录制时长: ${liveRecorder.recProgress?.timemark || "未知"}`,
+                text: `直播间 ${room_id} 录制结束\n\n录制时长: ${liveRecorder.recDuration ? Tools.formatTime(liveRecorder.recDuration) : "未知"}`,
               },
             },
           ])
@@ -220,7 +220,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
               {
                 type: "text",
                 data: {
-                  text: `直播间 ${room_id} 录像投稿成功\n\n视频地址: https://www.bilibili.com/video/${bvid}`,
+                  text: `直播间 ${room_id} 录像投稿成功\n\n视频地址: https://www.bilibili.com/video/${bvid}\n\n请耐心等待审核完成`,
                 },
               },
             ]
@@ -710,5 +710,21 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
 
   private _messageSendError(e: any) {
     logger.error("[XzQBot Message Handler]", "消息发送失败", e as Error);
+  }
+}
+
+class Tools {
+  static formatTime(seconds: number) {
+    const days = Math.floor(seconds / (3600 * 24)); // 计算天数
+    const hours = Math.floor((seconds % (3600 * 24)) / 3600); // 计算剩余的小时数
+    const minutes = Math.floor((seconds % 3600) / 60); // 计算剩余的分钟数
+    const secs = Math.floor(seconds % 60); // 计算剩余的秒数
+
+    let str = `${secs} 秒`;
+    if (minutes > 0) str = `${minutes} 分钟 ${str}`;
+    if (hours > 0) str = `${hours} 小时 ${str}`;
+    if (days > 0) str = `${days} 天 ${str}`;
+
+    return str;
   }
 }

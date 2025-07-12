@@ -45,7 +45,7 @@ export default class BilibiliUploader {
     const taskList: BilibiliUploaderTask["status"] = (this.taskMap.get(taskId)!.status = []);
 
     function getFormatTime(time?: number) {
-      return moment(time).format("yyyy-MM-DD HH:mm:ss");
+      return moment(time).format("HH:mm:ss");
     }
 
     /*
@@ -133,7 +133,7 @@ export default class BilibiliUploader {
       const createTask = (i: number) =>
         limit(async () => {
           // updateProgress(`视频分片上传 ${successCount}/${totalChunks} /${i + 1}`, "pending", true);
-          taskList[2].process = successCount + "/" + totalChunks + " /" + (i + 1);
+          taskList[2].process = successCount + "/" + totalChunks;
 
           await this.uploadChunk(i, chunk_size, upload_url, auth, upload_id, totalChunks, video_file_path, video_file_size);
 
