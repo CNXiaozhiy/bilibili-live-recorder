@@ -280,7 +280,8 @@ const format = {
       (roomInfo.live_status === Bilibili.LiveRoomStatus.LIVE
         ? `直播间人气: ${roomInfo.online}\n` + `开播时间: ${moment(roomInfo.live_time).format("YYYY-MM-DD HH:mm:ss")}\n`
         : "") +
-      `直播间地址: https://live.bilibili.com/${roomInfo.room_id}\n👆点击链接进入直播间`;
+      `直播间地址: https://live.bilibili.com/${roomInfo.room_id}` +
+      (roomInfo.live_status === Bilibili.LiveRoomStatus.LIVE ? "\n👆点击链接进入直播间" : "");
 
     return [
       { type: "image", data: { file: roomInfo.user_cover } },

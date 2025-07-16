@@ -170,7 +170,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
     });
 
     liveMonitor.on("live-slideshow", () => {
-      if (isFirst(room_id)) return;
+      // if (isFirst(room_id)) return;
     });
 
     liveRecorder.on("rec-end", async () => {

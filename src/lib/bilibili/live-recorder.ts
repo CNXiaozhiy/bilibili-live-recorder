@@ -96,7 +96,10 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
     const onFinlish = (mergedFilePath: string) => {
       this.emit("rec-end", this.recHash!, mergedFilePath, this.recDuration);
-      logger.info("[Live Recorder]", `房间 ${this.roomId} 停止录制成功`);
+      logger.info(
+        "[Live Recorder]",
+        `房间 ${this.roomId} 停止录制成功, recHash: ${this.recHash}, mergedFilePath: ${mergedFilePath}, recDuration: ${this.recDuration}`
+      );
     };
     const onError = (error: unknown) => {
       this.emit("rec-merge-error", error);
@@ -176,13 +179,14 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     }
   }
 
-  private __handleRecEnd() {
+  private _publicHandleRecEnd() {
     this._changeRecStatus(Bilibili.RecorderStatus.NOT_RECORDING);
     this.recDuration += Tools.timeToSeconds(this.recProgress!.timemark);
   }
 
   private async _handleRecError(err: unknown) {
-    this.__handleRecEnd();
+    logger.debug("[Live Recorder]", `房间 ${this.roomId} -> _handleRecError`);
+    this._publicHandleRecEnd();
 
     logger.trace("[Live Recorder]", "录制过程中出现意外的错误: ", err);
     logger.error("[Live Recorder]", `房间 ${this.roomId} 录制失败: ${err}`);
@@ -191,7 +195,8 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
   }
 
   private async _handleRecEnd() {
-    this.__handleRecEnd();
+    logger.debug("[Live Recorder]", `房间 ${this.roomId} -> _handleRecEnd`);
+    this._publicHandleRecEnd();
 
     logger.debug("[Live Recorder]", `房间 ${this.roomId} 录制被结束，正在核验是否为意外情况`);
 
@@ -210,13 +215,13 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
           logger.warn("[Live Recorder]", "意外的录制结束，正在重新录制");
           // 重新录制
           this.retryRec();
-          return;
         } else {
           // 正常的录制结束
           logger.info("[Live Recorder]", "正常的录制结束，正在结束录制");
           // 结束录制
           this._stopRec();
         }
+        return;
       } catch (error) {
         logger.error("[Live Recorder]", `房间 ${this.roomId} 意外的录制结束核验失败: ${error}`);
         logger.warn("[Live Recorder]", "尝试重新核验，共 24 次，当前第 " + (index + 1) + " 次");
@@ -234,9 +239,16 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     // 基础条件检查
     try {
       // 判断直播间是否开播
-      if ((await Tools.getLiveRoomLiveStatus(this.roomId)) !== Bilibili.LiveRoomStatus.LIVE) throw "直播间未开播";
+      if ((await Tools.getLiveRoomLiveStatus(this.roomId)) !== Bilibili.LiveRoomStatus.LIVE) {
+        logger.warn("[Live Recorder]", `基础条件检查未通过: 直播间未开播`);
+        return;
+      } else {
+        logger.debug("[Live Recorder]", `基础条件检查通过: 直播间已开播`);
+      }
     } catch (error) {
-      logger.warn("[Live Recorder]", `基础条件检查失败或未通过: ${error}`);
+      logger.warn("[Live Recorder]", `基础条件检查失败: ${error}，正在重试`);
+      // 重试
+      this.retryRec();
       return;
     }
 
@@ -246,6 +258,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     try {
       const liveStreamUrls = await getLiveStreamUrl(this.roomId);
       liveStreamUrl = await getAvailableLiveStream(liveStreamUrls);
+      logger.debug("[Live Recorder]", `房间 ${this.roomId} 直播流采集成功: ${liveStreamUrl}`);
       if (!liveStreamUrl) throw new Error("无可用的直播流");
     } catch (error) {
       logger.warn("[Live Recorder]", `录制所需必要信息采集失败: ${error}，正在重试`);
@@ -286,16 +299,16 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
           if (this.recWatchDog_lastFileSize === fileSize) {
             // this.recCommand?.emit("error", new Error("录制文件长时间无变化"));
-            logger.warn("[Live Recorder]", `房间 ${this.roomId} 录制文件长时间无变化`);
-            this.recCommand?.removeAllListeners();
-            this.recCommand?.kill("SIGTERM");
-            Tools._cleanNullFiles([outputFilePath], false);
+            logger.warn("[Live Recorder]", `房间 ${this.roomId} 录制文件长时间无变化，正在重新录制`);
             this.recCommand?.emit("error", new Error("录制文件长时间无变化"));
+            this.recCommand?.kill("SIGTERM"); // 由于.once('error'), 这里不会被 _handleRecError 处理
+            Tools._cleanNullFiles([outputFilePath], false);
+            this._clearRecWatchDog();
           }
         }, CHECK_FILE_SIZE_INTERVAL);
       })
-      .once("error", this._handleRecError)
-      .once("end", this._handleRecEnd);
+      .once("error", (e) => this._handleRecError(e))
+      .once("end", () => this._handleRecEnd());
 
     this.recCommand.on("progress", (progress) => {
       this.recProgress = progress;
@@ -310,7 +323,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
       logger.warn("[Live Recorder]", `出现逻辑错误：当前录制状态不符合RetryRec的逻辑，重试被忽略`);
       return;
     }
-    setTimeout(this.rec, timeout);
+    setTimeout(() => this.rec(), timeout);
   }
 
   public stop() {

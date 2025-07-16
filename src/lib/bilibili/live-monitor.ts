@@ -32,14 +32,23 @@ export default class BilibiliLiveMonitor extends EventEmitter<LiveMonitorEvents>
 
           switch (roomInfo.live_status) {
             case 0:
-              this.emit("live-end", roomInfo, (Date.now() - new Date(this.roomInfoBefore!.live_time).getTime()) / 1000);
+              this.emit(
+                "live-end",
+                roomInfo,
+                this.roomInfoBefore?.live_status !== 1 ? 0 : (Date.now() - new Date(this.roomInfoBefore!.live_time).getTime()) / 1000
+              );
               break;
             case 1:
               this.emit("live-start", roomInfo);
               break;
             case 2:
               this.emit("live-slideshow", roomInfo);
-              if (this.slideshowAsEnd) this.emit("live-end", roomInfo, (Date.now() - new Date(this.roomInfoBefore!.live_time).getTime()) / 1000);
+              if (this.slideshowAsEnd)
+                this.emit(
+                  "live-end",
+                  roomInfo,
+                  this.roomInfoBefore?.live_status !== 1 ? 0 : (Date.now() - new Date(this.roomInfoBefore!.live_time).getTime()) / 1000
+                );
               break;
             default:
               break;
