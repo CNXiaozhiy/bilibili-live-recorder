@@ -181,6 +181,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
   private _publicHandleRecEnd() {
     this._changeRecStatus(Bilibili.RecorderStatus.NOT_RECORDING);
+    logger.debug("[Live Recorder]", `recDuration: ${this.recDuration} += ${Tools.timeToSeconds(this.recProgress!.timemark)}`);
     this.recDuration += Tools.timeToSeconds(this.recProgress!.timemark);
   }
 

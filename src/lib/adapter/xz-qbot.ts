@@ -173,7 +173,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
       // if (isFirst(room_id)) return;
     });
 
-    liveRecorder.on("rec-end", async () => {
+    liveRecorder.on("rec-end", async (recHash, _, recDuration) => {
       const { subscribers, groups } = await getSubscribes();
 
       groups.forEach((group_id) => {
@@ -182,7 +182,7 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
             {
               type: "text",
               data: {
-                text: `直播间 ${room_id} 录制结束\n\n录制时长: ${liveRecorder.recDuration ? Tools.formatTime(liveRecorder.recDuration) : "未知"}`,
+                text: `直播间 ${room_id} 录制结束\nHash: ${recHash.slice(0, 8)}\n\n录制时长: ${recDuration ? Tools.formatTime(recDuration) : "未知"}`,
               },
             },
           ])
