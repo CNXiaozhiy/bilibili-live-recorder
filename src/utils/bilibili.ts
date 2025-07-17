@@ -2,6 +2,7 @@ import logger from "@/logger";
 import QRCode from "qrcode";
 import path from "path";
 import moment from "moment";
+import crypto from "crypto";
 import bilibiliStore from "@/store/bilibili";
 import BilibiliLiveRecorder from "@/lib/bilibili/live-recorder";
 import {
@@ -252,6 +253,13 @@ async function generateUploadrOptions(
   return options;
 }
 
+function getLiveHash(roomId: number | string, startTime: Date | string): string {
+  return crypto
+    .createHash("md5")
+    .update(`${roomId}_${new Date(startTime).getTime()}`)
+    .digest("hex");
+}
+
 const format = {
   recordStatus: (roomInfo: LiveRoomInfo, liveRecorder: BilibiliLiveRecorder, upUserInfo?: UserInfo): SegmentMessages => {
     const isRecording = liveRecorder.recStatus === Bilibili.RecorderStatus.RECORDING;
@@ -320,5 +328,6 @@ export default class BilibiliUtils {
   static getCSRF = getCSRF;
   static parseCookies = parseCookies;
   static generateUploadrOptions = generateUploadrOptions;
+  static getLiveHash = getLiveHash;
   static format = format;
 }

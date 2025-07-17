@@ -1,5 +1,4 @@
 import fs from "fs";
-import crypto from "crypto";
 import ffmpeg from "fluent-ffmpeg";
 import EventEmitter from "events";
 import { getLiveRoomInfo, getLiveStreamUrl, getAvailableLiveStream } from "./api";
@@ -12,6 +11,7 @@ import FileTreeParse from "./file-tree-parse";
 import { shutdownManager } from "@/utils/shutdown-manager";
 import { generateRecordMetaFilePath } from "@/utils/meta-file";
 import { sleep } from "@/utils/promise";
+import BilibiliUtils from "@/utils/bilibili";
 
 const CHECK_FILE_EXIST_INTERVAL = 30 * 1000;
 const CHECK_FILE_SIZE_INTERVAL = 60 * 1000;
@@ -164,8 +164,7 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
     this.stat.endTime = undefined;
 
     const liveRoomInfo = await getLiveRoomInfo(this.roomId);
-    const liveStartTime = new Date(liveRoomInfo.live_time).getTime();
-    this.recHash = crypto.createHash("md5").update(`${this.roomId}_${liveStartTime}`).digest("hex");
+    this.recHash = BilibiliUtils.getLiveHash(this.roomId, liveRoomInfo.live_time);
 
     this.emit("rec-start", this.recHash);
 
