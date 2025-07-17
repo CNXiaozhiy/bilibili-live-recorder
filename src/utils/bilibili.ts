@@ -198,20 +198,21 @@ async function generateDefaultUploadrOptions(
     file_path: file,
 
     video: {
-      title: `【${userInfo.card.name}】【直播回放】${liveRoomInfo.title} ${liveRoomInfo.live_time}`,
+      title: `【${userInfo.card.name}】${moment(liveRoomInfo.live_time).format("M.D")} 直播录像 - ${liveRoomInfo.title}`,
       description:
         `UP主: ${userInfo.card.name}\n` +
-        `https://space.bilibili.com/${userInfo.card.mid}\n` +
-        `\n` +
+        `https://space.bilibili.com/${userInfo.card.mid}\n\n` +
+        //
+        `开播时间: ${moment(liveRoomInfo.live_time).format("YYYY-MM-DD HH:mm:ss")}\n` +
+        `开始录制: ${stat.startTime ? moment(stat.startTime).format("YYYY-MM-DD HH:mm:ss") : "未知"}\n` +
+        `结束录制: ${stat.endTime ? moment(stat.endTime).format("YYYY-MM-DD HH:mm:ss") : "未知"}\n\n` +
+        //
         `直播间标题: ${liveRoomInfo.title}\n` +
         `直播间简介: ${liveRoomInfo.description || "无"}\n` +
         `直播间地址: https://live.bilibili.com/${liveRoomInfo.room_id}\n` +
-        `开播时间: ${moment(liveRoomInfo.live_time).format("YYYY-MM-DD HH:mm:ss")}\n` +
-        `开始录制: ${stat.startTime ? moment(stat.startTime).format("YYYY-MM-DD HH:mm:ss") : "未知"}\n` +
-        `结束录制: ${stat.endTime ? moment(stat.endTime).format("YYYY-MM-DD HH:mm:ss") : "未知"}\n` +
-        `\n` +
-        `侵权请联系本人, 本人将立即删除\n\n` +
-        `由 Xz-BLR-System ${process.env.APP_VERSION} 系统录制\n`,
+        `侵权请私信\n\n` +
+        //
+        `由 Xz-BLR-System ${process.env.APP_VERSION} 系统全自动录制\n`,
       cover: await getImageBase64FromUrl(liveRoomInfo.user_cover),
     },
   };

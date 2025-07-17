@@ -286,15 +286,15 @@ export default class XzQbotNotificationAdapter implements ISubAdapter {
         const packageJson = getPackageJson();
         const version = process.env.APP_VERSION;
         const changelog = `https://github.com/CNXiaozhiY/bilibili-live-recorder/blob/master/CHANGELOG.md`;
-        const support = `Xymao, CNXiaozhiY`;
+        const support = `Xymao`;
 
         return [
           { type: "text", data: { text: "Bilibili Live Recorder\n\n" } },
           { type: "text", data: { text: `当前版本: ${version}\n` } },
-          { type: "text", data: { text: `作者: ${packageJson.author}\n` } },
+          { type: "text", data: { text: `作者: ${packageJson.author}\n\n` } },
           { type: "text", data: { text: `Github: ${packageJson.repository.url}\n` } },
           { type: "text", data: { text: `更新日志: ${changelog}\n` } },
-          { type: "text", data: { text: `鸣谢: ${support}` } },
+          { type: "text", data: { text: `特别鸣谢: ${support}` } },
         ];
       })
       .register("帮助", {}, () => {
