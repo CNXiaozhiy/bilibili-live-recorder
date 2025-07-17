@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { resolve } from "path";
+import { getPackageJson } from "./package";
 
 /**
  * @description:初始化环境变量
@@ -9,6 +10,9 @@ import { resolve } from "path";
 (function initEnv() {
   const customPath = resolve(process.cwd(), `.env.${process.env.NODE_ENV}`);
   dotenv.config({ path: customPath });
+  const packageJson = getPackageJson();
+  process.env.APP_VERSION = packageJson["version"];
+  process.env.META_FILE_VERSION = packageJson["meta-file-version"];
 })();
 
 export default process.env;

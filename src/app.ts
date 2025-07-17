@@ -2,9 +2,6 @@
  * XzBLR System
  */
 
-process.env.APP_VERSION = "2.2.3";
-process.env.META_FILE_VERSION = "1.0.1";
-
 import fes from "./bootstrap"; // frontEndServices
 
 import { taskRecovery } from "./utils/task-recovery";

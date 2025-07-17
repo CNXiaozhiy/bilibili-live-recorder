@@ -160,8 +160,6 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
   // 情况处理
   private async _handleRecFirstStart() {
-    this._changeRecStatus(Bilibili.RecorderStatus.RECORDING);
-
     this.stat.startTime = new Date();
     this.stat.endTime = undefined;
 
@@ -274,6 +272,8 @@ export default class BilibiliLiveRecorder extends EventEmitter<LiveRecoderEvents
 
     this.recCommand
       .once("start", async () => {
+        this._changeRecStatus(Bilibili.RecorderStatus.RECORDING);
+
         if (this.segmentFiles.length === 0) await this._handleRecFirstStart();
 
         this.segmentFiles.push(outputFilePath);
