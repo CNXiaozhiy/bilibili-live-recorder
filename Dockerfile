@@ -1,20 +1,26 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --prefer-offline
 COPY . .
 RUN npm run build
 
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-ENV ENV_FILE="/app/config/.env.production"
 
-RUN mkdir -p /app/config
+RUN apk add --no-cache ffmpeg && \
+    addgroup -S appgroup && \
+    adduser -S appuser -G appgroup && \
+    mkdir -p /app/config && \
+    chown -R appuser:appgroup /app
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/dist ./dist
+ENV FFMPEG_BIN_FOLDER="/usr/bin"
 
-RUN npm ci --omit=dev
+COPY --from=builder --chown=appuser:appgroup /app/package.json /app/package-lock.json ./
+COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 
-CMD ["npm", "run prod"]
+RUN npm ci --omit=dev --no-audit --prefer-offline
+
+USER appuser
+CMD ["npm", "run", "prod"]
