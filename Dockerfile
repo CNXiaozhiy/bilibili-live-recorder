@@ -16,6 +16,7 @@ RUN apk add --no-cache ffmpeg && \
     chown -R appuser:appgroup /app
 
 ENV FFMPEG_BIN_FOLDER="/usr/bin"
+ENV ENV_FILE_FLODER="/app/config"
 
 COPY --from=builder --chown=appuser:appgroup /app/package.json /app/package-lock.json ./
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist

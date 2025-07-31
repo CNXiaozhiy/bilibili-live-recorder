@@ -97,7 +97,7 @@ deploy() {
     
     # 录制文件路径配置
     step "3. 录制文件路径配置..."
-    record_host_path=$(ask_mount "录制文件目录" "/recordings" "./recordings")
+    record_host_path=$(ask_mount "录制文件目录" "/app/recordings" "./recordings")
     
     # 数据库路径配置
     step "4. 数据库路径配置..."

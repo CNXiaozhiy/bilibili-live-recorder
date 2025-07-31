@@ -8,7 +8,7 @@ import { getPackageJson } from "./package";
  * @Author: XzY
  */
 (function initEnv() {
-  const customPath = resolve(process.cwd(), `config/.env.${process.env.NODE_ENV}`);
+  const customPath = resolve(process.env.ENV_FILE_FLODER || resolve(process.cwd(), "config"), `.env.${process.env.NODE_ENV}`);
   dotenv.config({ path: customPath });
   const packageJson = getPackageJson();
   process.env.APP_VERSION = packageJson["version"];
