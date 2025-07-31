@@ -3,7 +3,14 @@
 
 [![Docker Build Status](https://img.shields.io/github/actions/workflow/status/cnxiaozhiy/bilibili-live-recorder/docker-publish.yml?label=Docker%20Build)](https://hub.docker.com/r/cnxiaozhiy/bilibili-live-recorder)
 
-curl -o- https://raw.githubusercontent.com/cnxiaozhiy/bilibili-live-recorder/v2.3.1/deploy.sh | bash
+## linux docker 一键部署
 
-## ghfast.top
-curl -o- https://ghfast.top/https://raw.githubusercontent.com/cnxiaozhiy/bilibili-live-recorder/v2.3.1/deploy.sh | bash
+### github.com
+```bash
+bash -c "$(curl -sSL https://raw.githubusercontent.com/cnxiaozhiy/bilibili-live-recorder/master/deploy.sh)"
+```
+
+### ghfast.top
+```bash
+bash -c "$(curl -sSL https://ghfast.top/https://raw.githubusercontent.com/cnxiaozhiy/bilibili-live-recorder/master/deploy.sh)"
+```
