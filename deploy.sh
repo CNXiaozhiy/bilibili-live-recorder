@@ -162,8 +162,6 @@ ADAPTER_XZQBOT_ENABLE=$enable_bot
 ADAPTER_XZQBOT_CONFIG_WS="$ws_url"
 DB_PATH="$db_container_path/main.db"
 EOF
-    
-    chmod 600 "$config_file"
 
     info "配置文件已生成: $config_host_path/.env.production"
     echo -e "${YELLOW}----------------------------------------"

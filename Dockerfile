@@ -9,10 +9,16 @@ FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
+RUN apk add --no-cache tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
 RUN apk add --no-cache ffmpeg
 
 ENV FFMPEG_BIN_FOLDER="/usr/bin"
 ENV ENV_FILE_FLODER="/app/config"
+ENV TZ="Asia/Shanghai"
 
 COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY --from=builder /app/dist ./dist
